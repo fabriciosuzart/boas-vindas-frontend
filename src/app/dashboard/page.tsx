@@ -57,7 +57,7 @@ export default function Dashboard() {
       const ano = dataAtual.getFullYear();
       const mes = modoAnual ? 'todos' : dataAtual.getMonth() + 1;
       
-      const res = await fetch(`http://localhost:3333/registros/${ano}/${mes}`);
+      const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${ano}/${mes}`);
       if (res.ok) setVisitantes(await res.json());
     } catch (error) { 
       console.error("Erro ao buscar visitantes"); 
@@ -89,7 +89,7 @@ export default function Dashboard() {
     if (!window.confirm(`Tem certeza que deseja excluir permanentemente o registro de ${nome}?`)) return;
 
     try {
-      const res = await fetch(`http://localhost:3333/registros/${id}`, { method: 'DELETE' });
+      const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setVisitantes(visitantes.filter(v => v.id !== id));
       } else {
@@ -121,7 +121,7 @@ export default function Dashboard() {
       // Limpa a máscara do telefone
       const telefoneLimpo = formEdicao.telefone.replace(/\D/g, '');
 
-      const res = await fetch(`http://localhost:3333/registros/${visitanteEditando.id}`, {
+      const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${visitanteEditando.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -157,7 +157,7 @@ export default function Dashboard() {
   // --- LÓGICA DE STATUS E WHATSAPP ---
   const alterarStatus = async (id: string, novoStatus: string) => {
     try {
-      const res = await fetch(`http://localhost:3333/registros/${id}/status`, {
+      const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: novoStatus })

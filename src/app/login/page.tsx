@@ -29,7 +29,7 @@ export default function LoginPage() {
     }
 
     try {
-      const res = await fetch('http://localhost:3333/login', {
+      const res = await fetch('https://boas-vindas-backend.onrender.com/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ telefone: telefoneFinal, senha })

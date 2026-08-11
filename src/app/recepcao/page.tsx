@@ -28,7 +28,7 @@ export default function Recepcao() {
       router.push('/login');
     } else {
       // Se tá logado, já procura qual é o culto de hoje no banco de dados!
-      fetch('http://localhost:3333/cultos/hoje')
+      fetch('https://boas-vindas-backend.onrender.com/cultos/hoje')
         .then(res => {
           if (!res.ok) throw new Error();
           return res.json();
@@ -72,7 +72,7 @@ export default function Recepcao() {
     const telefoneLimpo = formData.telefone.replace(/\D/g, '');
 
     try {
-      const response = await fetch('http://localhost:3333/registros', {
+      const response = await fetch('https://boas-vindas-backend.onrender.com/registros', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

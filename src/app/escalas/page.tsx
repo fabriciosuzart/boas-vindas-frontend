@@ -40,7 +40,7 @@ export default function Escalas() {
 
   const carregarEscalas = async () => {
     try {
-      const res = await fetch('http://localhost:3333/escalas');
+      const res = await fetch('https://boas-vindas-backend.onrender.com/escalas');
       if (res.ok) setCultos(await res.json());
     } catch (error) { console.error("Erro", error); }
   };
@@ -50,7 +50,7 @@ export default function Escalas() {
       carregarEscalas();
       // Só busca todos os usuários se for Admin, para otimizar o sistema!
       if (usuario.perfil === 'ADMIN') {
-        fetch('http://localhost:3333/usuarios')
+        fetch('https://boas-vindas-backend.onrender.com/usuarios')
           .then(res => res.json())
           .then(data => setTodosUsuarios(data));
       }
@@ -66,7 +66,7 @@ export default function Escalas() {
   const gerarSorteio = async () => {
     setIsGerando(true);
     try {
-      const res = await fetch('http://localhost:3333/escalas/gerar', { method: 'POST' });
+      const res = await fetch('https://boas-vindas-backend.onrender.com/escalas/gerar', { method: 'POST' });
       const data = await res.json();
       if (res.ok) { alert(data.mensagem); carregarEscalas(); } else { alert(data.erro); }
     } catch (error) { } finally { setIsGerando(false); }
@@ -74,14 +74,14 @@ export default function Escalas() {
 
   const removerManual = async (escalaId: string) => {
     if (!confirm("Remover este voluntário da escala?")) return;
-    await fetch(`http://localhost:3333/escalas/${escalaId}`, { method: 'DELETE' });
+    await fetch(`https://boas-vindas-backend.onrender.com/escalas/${escalaId}`, { method: 'DELETE' });
     carregarEscalas();
   };
 
   const confirmarAdicao = async (usuarioId: string, forcar = false) => {
     if (!cultoSelecionado) return;
     try {
-      const res = await fetch('http://localhost:3333/escalas/adicionar', {
+      const res = await fetch('https://boas-vindas-backend.onrender.com/escalas/adicionar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ culto_id: cultoSelecionado, usuario_id: usuarioId, forcar })
@@ -99,7 +99,7 @@ export default function Escalas() {
   const abrirModalDisponibilidade = async () => {
     setDatasNovas([]); setNovaDataInput('');
     try {
-      const res = await fetch(`http://localhost:3333/disponibilidade/${usuario.id}`);
+      const res = await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${usuario.id}`);
       if (res.ok) setBloqueiosSalvos(await res.json());
     } catch (e) { }
     setModalDisponibilidadeAberto(true);
@@ -107,13 +107,13 @@ export default function Escalas() {
   const adicionarDataNova = () => { if (novaDataInput && !datasNovas.includes(novaDataInput)) { setDatasNovas([...datasNovas, novaDataInput]); setNovaDataInput(''); } };
   const removerBloqueioSalvo = async (id: string) => {
     if (!confirm("Remover bloqueio?")) return;
-    await fetch(`http://localhost:3333/disponibilidade/${id}`, { method: 'DELETE' });
+    await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${id}`, { method: 'DELETE' });
     setBloqueiosSalvos(bloqueiosSalvos.filter(b => b.id !== id));
   };
   const salvarNovasDatas = async () => {
     if (datasNovas.length === 0) return setModalDisponibilidadeAberto(false);
     try {
-      const res = await fetch('http://localhost:3333/disponibilidade', {
+      const res = await fetch('https://boas-vindas-backend.onrender.com/disponibilidade', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usuario_id: usuario.id, datas_iso: datasNovas })
       });
