@@ -138,7 +138,6 @@ export default function AdminPage() {
         const templates = [];
         if (gerarFamilia) templates.push({ diaSemana: 0, hora: 10, minuto: 0, nome: "Culto da Família" });
         if (gerarCelebracao) templates.push({ diaSemana: 0, hora: 19, minuto: 0, nome: "Culto da Celebração" });
-        if (gerarAviva) templates.push({ diaSemana: 3, hora: 20, minuto: 0, nome: "Culto Aviva" });
         if (gerarOnlife) templates.push({ diaSemana: 6, hora: 19, minuto: 0, nome: "Culto Onlife" });
 
         try {
