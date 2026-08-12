@@ -66,10 +66,10 @@ export default function AdminPage() {
 
     const carregarDados = async () => {
         try {
-            const resU = await fetch('http://localhost:3333/usuarios');
+            const resU = await fetch('https://boas-vindas-backend.onrender.com/usuarios');
             if (resU.ok) setUsuarios(await resU.json());
 
-            const resC = await fetch('http://localhost:3333/cultos');
+            const resC = await fetch('https://boas-vindas-backend.onrender.com/cultos');
             if (resC.ok) setCultos(await resC.json());
         } catch (error) {
             console.error("Erro ao carregar dados admin", error);
@@ -91,7 +91,7 @@ export default function AdminPage() {
         }
 
         try {
-            const url = editandoId ? `http://localhost:3333/usuarios/${editandoId}` : 'http://localhost:3333/usuarios';
+            const url = editandoId ? `https://boas-vindas-backend.onrender.com/usuarios/${editandoId}` : 'https://boas-vindas-backend.onrender.com/usuarios';
             const method = editandoId ? 'PUT' : 'POST';
 
             const res = await fetch(url, {
@@ -124,7 +124,7 @@ export default function AdminPage() {
     const handleDeleteUsuario = async (id: string, nome: string) => {
         if (!window.confirm(`⚠️ Tem certeza que deseja remover permanentemente o voluntário "${nome}"?`)) return;
         try {
-            const res = await fetch(`http://localhost:3333/usuarios/${id}`, { method: 'DELETE' });
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/usuarios/${id}`, { method: 'DELETE' });
             if (res.ok) carregarDados();
             else alert("Não foi possível remover (verifique se há escalas vinculadas).");
         } catch (err) { alert("Erro ao remover."); }
@@ -142,7 +142,7 @@ export default function AdminPage() {
         if (gerarOnlife) templates.push({ diaSemana: 6, hora: 19, minuto: 0, nome: "Culto Onlife" });
 
         try {
-            const res = await fetch('http://localhost:3333/cultos/gerar-mes', {
+            const res = await fetch('https://boas-vindas-backend.onrender.com/cultos/gerar-mes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ano: Number(anoSelecionado), mes: Number(mesSelecionado), templates })
@@ -157,7 +157,7 @@ export default function AdminPage() {
     const handleAddCultoManual = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:3333/cultos', {
+            const res = await fetch('https://boas-vindas-backend.onrender.com/cultos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nome: nomeCultoManual, data_hora: dataCultoManual })
@@ -173,7 +173,7 @@ export default function AdminPage() {
     const handleDeleteCulto = async (id: string, nome: string) => {
         if (!window.confirm(`⚠️ Tem certeza que deseja remover o culto "${nome}"?`)) return;
         try {
-            const res = await fetch(`http://localhost:3333/cultos/${id}`, { method: 'DELETE' });
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/cultos/${id}`, { method: 'DELETE' });
             if (res.ok) carregarDados();
             else alert("Erro ao remover culto.");
         } catch (err) { alert("Erro ao remover."); }
@@ -185,7 +185,7 @@ export default function AdminPage() {
         if (!window.confirm(`Tem certeza que deseja apagar TODAS as escalas do mês ${mesSelecionado}/${anoSelecionado}? Os cultos não serão apagados.`)) return;
         setIsProcessando(true);
         try {
-            const res = await fetch(`http://localhost:3333/escalas/mes/${anoSelecionado}/${mesSelecionado}`, { method: 'DELETE' });
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/escalas/mes/${anoSelecionado}/${mesSelecionado}`, { method: 'DELETE' });
             if (res.ok) { alert("✅ Escalas do mês foram limpas com sucesso!"); carregarDados(); }
             else alert("❌ Erro ao limpar as escalas.");
         } catch (error) { alert("Erro de conexão com o servidor."); }
@@ -196,7 +196,7 @@ export default function AdminPage() {
         if (!window.confirm(`ATENÇÃO: Você vai apagar TODOS os Cultos do mês ${mesSelecionado}/${anoSelecionado}. Isso apagará as escalas e visitas desse mês também. Deseja continuar?`)) return;
         setIsProcessando(true);
         try {
-            const res = await fetch(`http://localhost:3333/cultos/${anoSelecionado}/${mesSelecionado}`, { method: 'DELETE' });
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/cultos/${anoSelecionado}/${mesSelecionado}`, { method: 'DELETE' });
             if (res.ok) { alert("✅ Cultos do mês apagados com sucesso!"); carregarDados(); }
             else alert("❌ Erro ao apagar os cultos.");
         } catch (error) { alert("Erro de conexão com o servidor."); }
@@ -214,7 +214,7 @@ export default function AdminPage() {
 
         setIsProcessando(true);
         try {
-            const res = await fetch(`http://localhost:3333/sistema/zerar-tudo`, { method: 'DELETE' });
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/sistema/zerar-tudo`, { method: 'DELETE' });
             if (res.ok) {
                 alert("💥 SISTEMA ZERADO COM SUCESSO! O banco de dados está limpo para recomeçar.");
                 carregarDados();
