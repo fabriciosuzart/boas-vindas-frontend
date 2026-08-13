@@ -32,17 +32,12 @@ export default function AdminPage() {
         else if (usuario.perfil !== 'ADMIN') router.push('/escalas');
     }, [usuario, router]);
 
-    // MÁSCARA DE TELEFONE CORRIGIDA PARA PERMITIR APAGAR
     const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let v = e.target.value.replace(/\D/g, "");
         v = v.substring(0, 11);
-        if (v.length >= 3 && v.length <= 6) {
-            v = `(${v.substring(0, 2)}) ${v.substring(2)}`;
-        } else if (v.length >= 7 && v.length <= 10) {
-            v = `(${v.substring(0, 2)}) ${v.substring(2, 6)}-${v.substring(6)}`;
-        } else if (v.length === 11) {
-            v = `(${v.substring(0, 2)}) ${v.substring(2, 7)}-${v.substring(7)}`;
-        }
+        if (v.length >= 3 && v.length <= 6) v = `(${v.substring(0, 2)}) ${v.substring(2)}`;
+        else if (v.length >= 7 && v.length <= 10) v = `(${v.substring(0, 2)}) ${v.substring(2, 6)}-${v.substring(6)}`;
+        else if (v.length === 11) v = `(${v.substring(0, 2)}) ${v.substring(2, 7)}-${v.substring(7)}`;
         setNovoTelefone(v);
     };
 
@@ -86,7 +81,6 @@ export default function AdminPage() {
         try {
             const res = await fetch(`https://boas-vindas-backend.onrender.com/usuarios/${id}`, { method: 'DELETE' });
             if (res.ok) carregarDados();
-            else alert("Não foi possível remover.");
         } catch (err) { alert("Erro ao remover."); }
     };
 
@@ -117,20 +111,43 @@ export default function AdminPage() {
 
     const handleDeleteCulto = async (id: string, nome: string) => {
         if (!window.confirm(`Remover o culto "${nome}"?`)) return;
-        try {
-            const res = await fetch(`https://boas-vindas-backend.onrender.com/cultos/${id}`, { method: 'DELETE' });
-            if (res.ok) carregarDados();
-        } catch (err) { alert("Erro ao remover."); }
+        try { const res = await fetch(`https://boas-vindas-backend.onrender.com/cultos/${id}`, { method: 'DELETE' }); if (res.ok) carregarDados(); } catch (err) { }
     };
 
-    const limparEscalasDoMes = async () => { /* Mantem igual */ };
-    const limparCultosDoMes = async () => { /* Mantem igual */ };
-    const zerarSistema = async () => { /* Mantem igual */ };
+    // FUNÇÕES DE LIMPEZA RESTAURADAS
+    const limparEscalasDoMes = async () => {
+        if (!window.confirm(`Tem certeza que deseja apagar TODAS as escalas do mês ${mesSelecionado}/${anoSelecionado}?`)) return;
+        setIsProcessando(true);
+        try {
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/escalas/mes/${anoSelecionado}/${mesSelecionado}`, { method: 'DELETE' });
+            if (res.ok) { alert("✅ Escalas do mês foram limpas com sucesso!"); carregarDados(); }
+        } catch (error) { } finally { setIsProcessando(false); }
+    };
+
+    const limparCultosDoMes = async () => {
+        if (!window.confirm(`ATENÇÃO: Você vai apagar TODOS os Cultos e escalas do mês ${mesSelecionado}/${anoSelecionado}. Continuar?`)) return;
+        setIsProcessando(true);
+        try {
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/cultos/${anoSelecionado}/${mesSelecionado}`, { method: 'DELETE' });
+            if (res.ok) { alert("✅ Cultos do mês apagados com sucesso!"); carregarDados(); }
+        } catch (error) { } finally { setIsProcessando(false); }
+    };
+
+    const zerarSistema = async () => {
+        if (!window.confirm("🚨 ALERTA VERMELHO: Você está prestes a apagar TODOS os Cultos e Escalas de TODA a história da igreja.")) return;
+        const confirmacaoDigitada = window.prompt('Para confirmar a exclusão, digite a palavra "ZERAR":');
+        if (confirmacaoDigitada !== 'ZERAR') return alert("Cancelado.");
+        setIsProcessando(true);
+        try {
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/sistema/zerar-tudo`, { method: 'DELETE' });
+            if (res.ok) { alert("💥 SISTEMA ZERADO COM SUCESSO!"); carregarDados(); }
+        } catch (error) { } finally { setIsProcessando(false); }
+    };
 
     if (!usuario || usuario.perfil !== 'ADMIN') return null;
 
     return (
-        <main className="min-h-screen bg-gray-50 pb-12">
+        <main className="min-h-screen bg-gray-50 pb-12 pt-8">
             <div className="mx-auto max-w-6xl px-6">
                 <div className="mb-8 border-b pb-4">
                     <h1 className="text-3xl font-bold text-gray-800">Painel do Administrador</h1>
@@ -156,8 +173,8 @@ export default function AdminPage() {
                                 <div key={u.id} className="flex items-center justify-between rounded border p-3 bg-white">
                                     <div><p className="font-bold text-black">{u.nome}</p></div>
                                     <div className="flex space-x-2">
-                                        <button onClick={() => iniciarEdicao(u)} className="text-xs text-yellow-700">Editar</button>
-                                        <button onClick={() => handleDeleteUsuario(u.id, u.nome)} className="text-xs text-red-600">Remover</button>
+                                        <button onClick={() => iniciarEdicao(u)} className="text-xs text-yellow-700 font-bold">Editar</button>
+                                        <button onClick={() => handleDeleteUsuario(u.id, u.nome)} className="text-xs text-red-600 font-bold">Remover</button>
                                     </div>
                                 </div>
                             ))}
@@ -196,6 +213,27 @@ export default function AdminPage() {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                </div>
+
+                {/* ZONA DE PERIGO RESTAURADA */}
+                <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100 mb-8">
+                    <h2 className="mb-4 text-xl font-bold text-gray-800 border-b pb-2">Manutenção e Limpeza</h2>
+                    <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                        <button onClick={limparEscalasDoMes} disabled={isProcessando} className="flex-1 py-3 px-4 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-lg shadow-sm transition">
+                            🧹 Limpar APENAS Escalas
+                        </button>
+                        <button onClick={limparCultosDoMes} disabled={isProcessando} className="flex-1 py-3 px-4 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg shadow-sm transition">
+                            🗑️ Apagar Cultos do Mês
+                        </button>
+                    </div>
+
+                    <div className="bg-red-50 p-5 rounded-lg border-2 border-red-200">
+                        <h3 className="font-bold text-red-800 uppercase tracking-wide mb-2">🚨 Zona de Perigo (Reset Total)</h3>
+                        <p className="text-sm text-red-700 mb-4">Ação <strong>IRREVERSÍVEL</strong>. Apagará todos os cultos e escalas de toda a história.</p>
+                        <button onClick={zerarSistema} disabled={isProcessando} className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-sm transition">
+                            🔥 ZERAR TODO O SISTEMA
+                        </button>
                     </div>
                 </div>
             </div>

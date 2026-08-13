@@ -40,7 +40,6 @@ export default function Dashboard() {
   // Estados do Modal de Edição
   const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
   const [visitanteEditando, setVisitanteEditando] = useState<Visitante | null>(null);
-  // Formulário de Edição
   const [formEdicao, setFormEdicao] = useState({
     nome: '', telefone: '', faixa_etaria: '', veio_com: '', observacoes: ''
   });
@@ -103,9 +102,15 @@ export default function Dashboard() {
   // --- LÓGICA DE EDIÇÃO ---
   const abrirModalEdicao = (v: Visitante) => {
     setVisitanteEditando(v);
+    
+    // Formata o telefone já existente para exibir bonitinho no input
+    let tel = v.visitante.telefone || '';
+    if (tel.length === 11) tel = `(${tel.substring(0, 2)}) ${tel.substring(2, 7)}-${tel.substring(7)}`;
+    else if (tel.length === 10) tel = `(${tel.substring(0, 2)}) ${tel.substring(2, 6)}-${tel.substring(6)}`;
+
     setFormEdicao({
       nome: v.visitante.nome,
-      telefone: v.visitante.telefone || '',
+      telefone: tel,
       faixa_etaria: v.visitante.faixa_etaria || '',
       veio_com: v.veio_com || '',
       observacoes: v.observacoes || ''
@@ -118,7 +123,6 @@ export default function Dashboard() {
     if (!visitanteEditando) return;
 
     try {
-      // Limpa a máscara do telefone
       const telefoneLimpo = formEdicao.telefone.replace(/\D/g, '');
 
       const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${visitanteEditando.id}`, {
@@ -145,13 +149,14 @@ export default function Dashboard() {
     }
   };
 
+  // MÁSCARA DE TELEFONE CORRIGIDA PARA PERMITIR APAGAR
   const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let valor = e.target.value.replace(/\D/g, ''); 
-    if (valor.length > 11) valor = valor.slice(0, 11);
-    if (valor.length > 10) valor = valor.replace(/^(\d\d)(\d{5})(\d{4}).*/, '($1) $2-$3');
-    else if (valor.length > 5) valor = valor.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, '($1) $2-$3');
-    else if (valor.length > 2) valor = valor.replace(/^(\d\d)(\d{0,5})/, '($1) $2');
-    setFormEdicao({ ...formEdicao, telefone: valor });
+    let v = e.target.value.replace(/\D/g, "");
+    v = v.substring(0, 11);
+    if (v.length >= 3 && v.length <= 6) v = `(${v.substring(0, 2)}) ${v.substring(2)}`;
+    else if (v.length >= 7 && v.length <= 10) v = `(${v.substring(0, 2)}) ${v.substring(2, 6)}-${v.substring(6)}`;
+    else if (v.length === 11) v = `(${v.substring(0, 2)}) ${v.substring(2, 7)}-${v.substring(7)}`;
+    setFormEdicao({ ...formEdicao, telefone: v });
   };
 
   // --- LÓGICA DE STATUS E WHATSAPP ---
@@ -244,7 +249,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-24">
+    <main className="min-h-screen bg-gray-50 pb-24 pt-8">
       <div className="mx-auto max-w-6xl px-4 md:px-6">
         
         <div className="mb-6 md:mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -254,18 +259,32 @@ export default function Dashboard() {
           </div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="flex items-center bg-gray-200 rounded-lg p-1">
-              <button onClick={() => setModoAnual(false)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition ${!modoAnual ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            <div className="flex items-center bg-gray-200 rounded-lg p-1 w-full sm:w-auto">
+              <button onClick={() => setModoAnual(false)} className={`flex-1 sm:flex-none px-4 py-1.5 text-sm font-semibold rounded-md transition ${!modoAnual ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                 Mensal
               </button>
-              <button onClick={() => setModoAnual(true)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition ${modoAnual ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <button onClick={() => setModoAnual(true)} className={`flex-1 sm:flex-none px-4 py-1.5 text-sm font-semibold rounded-md transition ${modoAnual ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                 Anual
               </button>
             </div>
+            
+            {/* CORREÇÃO DO SELETOR DE ANO/MÊS AQUI */}
             <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full sm:w-auto">
-              <button onClick={() => modoAnual ? mudarAno(-1) : mudarMes(-1)} className="px-4 py-2 text-gray-500 hover:bg-gray-50 hover:text-blue-600 transition font-bold border-r border-gray-200">&lt;</button>
-              <span className="px-4 py-2 font-semibold text-gray-700 min-w-37.5 text-center capitalize text-sm whitespace-nowrap">{textoDataFormatada}</span>
-              <button onClick={() => modoAnual ? mudarAno(1) : mudarMes(1)} className="px-4 py-2 text-gray-500 hover:bg-gray-50 hover:text-blue-600 transition font-bold border-l border-gray-200">&gt;</button>
+              <button 
+                onClick={() => modoAnual ? mudarAno(-1) : mudarMes(-1)} 
+                className="flex items-center justify-center w-12 py-2 text-gray-500 hover:bg-gray-50 hover:text-blue-600 transition font-bold border-r border-gray-200"
+              >
+                &lt;
+              </button>
+              <span className="flex-1 sm:w-40 py-2 font-semibold text-gray-700 text-center capitalize text-sm whitespace-nowrap px-2">
+                {textoDataFormatada}
+              </span>
+              <button 
+                onClick={() => modoAnual ? mudarAno(1) : mudarMes(1)} 
+                className="flex items-center justify-center w-12 py-2 text-gray-500 hover:bg-gray-50 hover:text-blue-600 transition font-bold border-l border-gray-200"
+              >
+                &gt;
+              </button>
             </div>
           </div>
         </div>
@@ -330,7 +349,7 @@ export default function Dashboard() {
             </div>
             <input 
               type="text" 
-              className="block w-full p-2.5 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm" 
+              className="block w-full p-2.5 pl-10 text-base text-gray-900 border border-gray-300 rounded-lg bg-white focus:ring-blue-500 focus:border-blue-500 outline-none shadow-sm" 
               placeholder="Buscar por nome ou celular..." 
               value={termoBusca}
               onChange={(e) => setTermoBusca(e.target.value)}
@@ -364,13 +383,8 @@ export default function Dashboard() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-gray-800 text-lg leading-tight">{v.visitante.nome}</h3>
-                      {/* BOTOES DE EDITAR E EXCLUIR */}
-                      <button onClick={() => abrirModalEdicao(v)} className="text-gray-400 hover:text-blue-600 transition" title="Editar">
-                        ✏️
-                      </button>
-                      <button onClick={() => excluirVisitante(v.id, v.visitante.nome)} className="text-gray-400 hover:text-red-600 transition" title="Excluir">
-                        🗑️
-                      </button>
+                      <button onClick={() => abrirModalEdicao(v)} className="text-gray-400 hover:text-blue-600 transition" title="Editar">✏️</button>
+                      <button onClick={() => excluirVisitante(v.id, v.visitante.nome)} className="text-gray-400 hover:text-red-600 transition" title="Excluir">🗑️</button>
                     </div>
                     <p className="text-sm text-gray-500 mt-1 font-medium">{v.visitante.telefone || 'Sem contato'}</p>
                   </div>
@@ -419,7 +433,7 @@ export default function Dashboard() {
                   <button 
                     onClick={() => abrirModalWhatsApp(v)}
                     disabled={!v.visitante.telefone}
-                    className="w-full flex items-center justify-center rounded-lg bg-green-500 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center rounded-lg bg-green-500 py-3 text-base font-bold text-white shadow-sm transition hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
                     💬 Enviar Mensagem
                   </button>
@@ -430,26 +444,25 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* MODAL DO WHATSAPP */}
+      {/* MODAIS (WhatsApp e Edição) */}
       {modalZapAberto && visitanteSelecionado && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
             <h3 className="mb-2 font-bold text-gray-800 text-lg">Mensagem para {visitanteSelecionado.visitante.nome}</h3>
             <p className="text-sm text-gray-500 mb-4">Edite a mensagem abaixo antes de abrir o WhatsApp.</p>
             <textarea
-              className="w-full h-48 rounded-lg border border-gray-300 p-3 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 resize-none"
+              className="w-full h-48 rounded-lg border border-gray-300 p-3 text-base outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 resize-none"
               value={textoMensagem}
               onChange={(e) => setTextoMensagem(e.target.value)}
             />
             <div className="mt-4 flex gap-3">
-              <button onClick={() => setModalZapAberto(false)} className="w-full rounded-lg bg-gray-100 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-200">Cancelar</button>
-              <button onClick={confirmarEnvioWhatsApp} className="w-full rounded-lg bg-green-600 py-3 text-sm font-bold text-white shadow-md hover:bg-green-700">Enviar e Marcar "Em Contato"</button>
+              <button onClick={() => setModalZapAberto(false)} className="w-full rounded-lg bg-gray-100 py-3 text-base font-semibold text-gray-700 hover:bg-gray-200">Cancelar</button>
+              <button onClick={confirmarEnvioWhatsApp} className="w-full rounded-lg bg-green-600 py-3 text-base font-bold text-white shadow-md hover:bg-green-700">Enviar WhatsApp</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL DE EDIÇÃO DE VISITANTE */}
       {modalEdicaoAberto && visitanteEditando && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
@@ -458,18 +471,18 @@ export default function Dashboard() {
             <form onSubmit={salvarEdicao} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Nome</label>
-                <input type="text" required className="w-full rounded-lg border border-gray-300 p-2 outline-none focus:border-blue-500"
+                <input type="text" required className="w-full rounded-lg border border-gray-300 p-3 text-base outline-none focus:border-blue-500 bg-white"
                   value={formEdicao.nome} onChange={e => setFormEdicao({...formEdicao, nome: e.target.value})} />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Telefone</label>
-                <input type="text" className="w-full rounded-lg border border-gray-300 p-2 outline-none focus:border-blue-500"
+                <input type="text" className="w-full rounded-lg border border-gray-300 p-3 text-base outline-none focus:border-blue-500 bg-white"
                   value={formEdicao.telefone} onChange={handleTelefoneChange} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-gray-700">Faixa Etária</label>
-                  <select className="w-full rounded-lg border border-gray-300 p-2 outline-none focus:border-blue-500"
+                  <select className="w-full rounded-lg border border-gray-300 p-3 text-base outline-none focus:border-blue-500 bg-white"
                     value={formEdicao.faixa_etaria} onChange={e => setFormEdicao({...formEdicao, faixa_etaria: e.target.value})}>
                     <option value="">Selecione...</option>
                     <option value="Criança">Criança</option>
@@ -480,22 +493,22 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-gray-700">Veio Com</label>
-                  <input type="text" className="w-full rounded-lg border border-gray-300 p-2 outline-none focus:border-blue-500"
+                  <input type="text" className="w-full rounded-lg border border-gray-300 p-3 text-base outline-none focus:border-blue-500 bg-white"
                     value={formEdicao.veio_com} onChange={e => setFormEdicao({...formEdicao, veio_com: e.target.value})} />
                 </div>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Observações</label>
-                <textarea rows={2} className="w-full rounded-lg border border-gray-300 p-2 outline-none focus:border-blue-500 resize-none"
+                <textarea rows={2} className="w-full rounded-lg border border-gray-300 p-3 text-base outline-none focus:border-blue-500 bg-white resize-none"
                   value={formEdicao.observacoes} onChange={e => setFormEdicao({...formEdicao, observacoes: e.target.value})} />
               </div>
 
               <div className="mt-6 flex gap-3">
-                <button type="button" onClick={() => setModalEdicaoAberto(false)} className="w-full rounded-lg bg-gray-100 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-200">
+                <button type="button" onClick={() => setModalEdicaoAberto(false)} className="w-full rounded-lg bg-gray-100 py-3 text-base font-semibold text-gray-700 hover:bg-gray-200">
                   Cancelar
                 </button>
-                <button type="submit" className="w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-700">
-                  Salvar Alterações
+                <button type="submit" className="w-full rounded-lg bg-blue-600 py-3 text-base font-bold text-white shadow-md hover:bg-blue-700">
+                  Salvar
                 </button>
               </div>
             </form>

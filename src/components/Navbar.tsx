@@ -10,13 +10,11 @@ export default function Navbar() {
     const pathname = usePathname();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-    // Esconde o menu na tela de login ou na raiz
     if (!usuario || pathname === '/login' || pathname === '/') return null;
 
     return (
         <>
-            {/* Cabeçalho Fixo */}
-            <nav className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 mb-8">
+            <nav className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 sticky top-0 z-40">
                 <div className="mx-auto max-w-6xl flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <button 
@@ -36,7 +34,6 @@ export default function Navbar() {
                 </div>
             </nav>
 
-            {/* Fundo Escuro do Drawer */}
             {isDrawerOpen && (
                 <div 
                     className="fixed inset-0 z-50 bg-black/50 transition-opacity" 
@@ -44,7 +41,6 @@ export default function Navbar() {
                 ></div>
             )}
 
-            {/* Menu Lateral (Drawer) */}
             <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${isDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                     <span className="font-bold text-gray-800 text-lg">Menu</span>
