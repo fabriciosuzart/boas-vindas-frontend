@@ -245,24 +245,6 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24">
-      
-      <nav className="bg-white shadow-sm border-b border-gray-200 px-4 md:px-6 py-4 mb-6 md:mb-8">
-        <div className="mx-auto max-w-6xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4 overflow-x-auto pb-2 md:pb-0">
-            <span className="font-bold text-gray-800 text-lg flex items-center gap-2 whitespace-nowrap">⛪ Boas-Vindas</span>
-            <span className="text-gray-300 hidden md:inline">|</span>
-            <button onClick={() => router.push('/recepcao')} className="font-semibold text-gray-500 hover:text-blue-600 transition whitespace-nowrap text-sm md:text-base">Recepção</button>
-            <button onClick={() => router.push('/escalas')} className="font-semibold text-gray-500 hover:text-blue-600 transition whitespace-nowrap text-sm md:text-base">Escalas</button>
-            <span className="font-semibold text-blue-600 whitespace-nowrap text-sm md:text-base">Liderança</span>
-            <button onClick={() => router.push('/admin')} className="font-semibold text-gray-500 hover:text-blue-600 transition whitespace-nowrap text-sm md:text-base">Painel Admin</button>
-          </div>
-          <div className="flex items-center justify-between md:justify-end space-x-4 border-t md:border-none pt-3 md:pt-0 border-gray-100">
-            <span className="text-sm text-gray-600">Olá, <strong className="text-gray-800">{usuario.nome}</strong></span>
-            <button onClick={logout} className="text-sm font-bold text-red-500 hover:text-red-700 transition">Sair</button>
-          </div>
-        </div>
-      </nav>
-
       <div className="mx-auto max-w-6xl px-4 md:px-6">
         
         <div className="mb-6 md:mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

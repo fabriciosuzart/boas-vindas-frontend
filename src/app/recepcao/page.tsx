@@ -105,32 +105,6 @@ export default function Recepcao() {
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24">
-      
-      {/* ================= BARRA DE NAVEGAÇÃO SUPERIOR ================= */}
-      <nav className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 mb-8">
-        <div className="mx-auto max-w-5xl flex items-center justify-between">
-          <div className="flex items-center space-x-4 md:space-x-6 overflow-x-auto">
-            <span className="font-bold text-gray-800 text-lg flex items-center gap-2">⛪ Boas-Vindas</span>
-            <span className="text-gray-300">|</span>
-            
-            <span className="font-semibold text-blue-600">Recepção</span>
-            <button onClick={() => router.push('/escalas')} className="font-semibold text-gray-500 hover:text-blue-600 transition">Escalas</button>
-            
-            {isAdmin && (
-              <>
-                <button onClick={() => router.push('/dashboard')} className="font-semibold text-gray-500 hover:text-blue-600 transition">Liderança</button>
-                <button onClick={() => router.push('/admin')} className="font-semibold text-gray-500 hover:text-blue-600 transition">Painel Admin</button>
-              </>
-            )}
-          </div>
-          <div className="flex items-center space-x-4 ml-4">
-            <span className="text-sm text-gray-600 hidden sm:inline">Olá, <strong className="text-gray-800">{usuario.nome}</strong></span>
-            <button onClick={logout} className="text-sm font-bold text-red-500 hover:text-red-700 transition">Sair</button>
-          </div>
-        </div>
-      </nav>
-      {/* ================================================================= */}
-
       <div className="mx-auto max-w-md rounded-xl bg-white p-6 shadow-md border border-gray-100">
         
         {/* Cabeçalho do Card */}
