@@ -191,9 +191,9 @@ export default function AdminPage() {
                                 <input type="number" className="w-full rounded border p-3 text-base bg-white outline-none" value={anoSelecionado} onChange={e => setAnoSelecionado(Number(e.target.value))} />
                             </div>
                             <div className="space-y-2 mb-2 bg-white p-3 rounded border text-base">
-                                <label className="flex items-center space-x-2"><input type="checkbox" className="w-4 h-4" checked={gerarFamilia} onChange={e => setGerarFamilia(e.target.checked)} /><span>Dom 10h - Família</span></label>
-                                <label className="flex items-center space-x-2"><input type="checkbox" className="w-4 h-4" checked={gerarCelebracao} onChange={e => setGerarCelebracao(e.target.checked)} /><span>Dom 19h - Celebração</span></label>
-                                <label className="flex items-center space-x-2"><input type="checkbox" className="w-4 h-4" checked={gerarOnlife} onChange={e => setGerarOnlife(e.target.checked)} /><span>Sáb 19h - Onlife</span></label>
+                                <label className="flex items-center space-x-2 text-gray-800"><input type="checkbox" className="w-4 h-4" checked={gerarFamilia} onChange={e => setGerarFamilia(e.target.checked)} /><span>Dom 10h - Família</span></label>
+                                <label className="flex items-center space-x-2 text-gray-800"><input type="checkbox" className="w-4 h-4" checked={gerarCelebracao} onChange={e => setGerarCelebracao(e.target.checked)} /><span>Dom 19h - Celebração</span></label>
+                                <label className="flex items-center space-x-2 text-gray-800"><input type="checkbox" className="w-4 h-4" checked={gerarOnlife} onChange={e => setGerarOnlife(e.target.checked)} /><span>Sáb 19h - Onlife</span></label>
                             </div>
                             <button onClick={handleGerarMes} disabled={isProcessando} className="w-full rounded bg-blue-600 py-3 text-base font-bold text-white hover:bg-blue-700">Gerar Mês {mesSelecionado}/{anoSelecionado}</button>
                         </div>
