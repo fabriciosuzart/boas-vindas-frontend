@@ -128,7 +128,7 @@ export default function Escalas() {
     if (nome.includes('celebração')) return 'bg-yellow-25 border-yellow-100 text-yellow-800';
     if (nome.includes('família')) return 'bg-green-25 border-green-100 text-green-800';
     if (nome.includes('onlife')) return 'bg-blue-25 border-blue-100 text-blue-800';
-    return 'bg-orange-50 border-orange-200 text-orange-800'; // Salmão clarinho para extras
+    return 'bg-orange-25 border-orange-100 text-orange-800'; // Salmão clarinho para extras
   };
 
   // --- NOVA FUNÇÃO: BAIXAR TODOS OS EVENTOS DE UMA VEZ ---
