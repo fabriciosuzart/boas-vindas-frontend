@@ -15,10 +15,13 @@ export default function Escalas() {
   const [todosUsuarios, setTodosUsuarios] = useState<Usuario[]>([]);
   const [isGerando, setIsGerando] = useState(false);
   const [cultoSelecionado, setCultoSelecionado] = useState<string | null>(null);
+  
+  // Modal de Disponibilidade
   const [modalDisponibilidadeAberto, setModalDisponibilidadeAberto] = useState(false);
   const [bloqueiosSalvos, setBloqueiosSalvos] = useState<Bloqueio[]>([]);
   const [datasNovas, setDatasNovas] = useState<string[]>([]);
   const [novaDataInput, setNovaDataInput] = useState('');
+  const [novoCultoBloqueio, setNovoCultoBloqueio] = useState('TODOS'); // Novo estado para escolher o culto
 
   useEffect(() => { if (!usuario) router.push('/login'); }, [usuario, router]);
 
@@ -52,7 +55,6 @@ export default function Escalas() {
     } catch (e) { }
   };
 
-  // FUNÇÕES RESTAURADAS DO WHATSAPP
   const limparTelefone = (telefone: string | null) => {
     if (!telefone) return '';
     let num = telefone.replace(/\D/g, '');
@@ -82,15 +84,69 @@ export default function Escalas() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // MODAL DE DISPONIBILIDADE CORRIGIDO (Mostrando as datas)
-  const abrirModalDisponibilidade = async () => { setDatasNovas([]); setNovaDataInput(''); try { const res = await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${usuario.id}`); if (res.ok) setBloqueiosSalvos(await res.json()); } catch (e) { } setModalDisponibilidadeAberto(true); };
-  const adicionarDataNova = () => { if (novaDataInput && !datasNovas.includes(novaDataInput)) { setDatasNovas([...datasNovas, novaDataInput]); setNovaDataInput(''); } };
+  // --- NOVA LÓGICA DE DISPONIBILIDADE (COM CULTO ESPECÍFICO) ---
+  const abrirModalDisponibilidade = async () => { setDatasNovas([]); setNovaDataInput(''); setNovoCultoBloqueio('TODOS'); try { const res = await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${usuario.id}`); if (res.ok) setBloqueiosSalvos(await res.json()); } catch (e) { } setModalDisponibilidadeAberto(true); };
+  
+  const adicionarDataNova = () => { 
+    if (novaDataInput) {
+      // Salva a data combinada com o culto, ou só a data se for o dia todo
+      const bloqueioFormatado = novoCultoBloqueio === 'TODOS' ? novaDataInput : `${novaDataInput}::${novoCultoBloqueio}`;
+      if (!datasNovas.includes(bloqueioFormatado)) {
+        setDatasNovas([...datasNovas, bloqueioFormatado]); 
+        setNovaDataInput('');
+        setNovoCultoBloqueio('TODOS');
+      } 
+    } 
+  };
+  
   const removerBloqueioSalvo = async (id: string) => { await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${id}`, { method: 'DELETE' }); setBloqueiosSalvos(bloqueiosSalvos.filter(b => b.id !== id)); };
   const salvarNovasDatas = async () => { if (datasNovas.length === 0) return setModalDisponibilidadeAberto(false); try { const res = await fetch('https://boas-vindas-backend.onrender.com/disponibilidade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario_id: usuario.id, datas_iso: datasNovas }) }); if (res.ok) { alert("Agenda atualizada!"); setModalDisponibilidadeAberto(false); carregarEscalas(); } } catch (e) { } };
 
+  // Helper para exibir bonito no modal
+  const formatarDisplayBloqueio = (dIso: string) => {
+    if (dIso.includes('::')) {
+      const [dataStr, cultoStr] = dIso.split('::');
+      return `${new Date(dataStr + "T12:00:00").toLocaleDateString('pt-BR')} (${cultoStr})`;
+    }
+    return `${new Date(dIso + "T12:00:00").toLocaleDateString('pt-BR')} (Dia Todo)`;
+  };
+
+  // --- CORREÇÃO DO FUSO HORÁRIO ---
   const formatarData = (dataIso: string) => {
     const data = new Date(dataIso);
-    return { dia: data.getDate().toString().padStart(2, '0'), mes: data.toLocaleString('pt-BR', { month: 'short' }).replace('.', ''), diaSemana: data.toLocaleString('pt-BR', { weekday: 'long' }).split('-')[0], hora: data.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) };
+    data.setHours(data.getHours() + 3); // Compensa o fuso horário UTC do Render para mostrar o horário local correto
+    
+    return { 
+      dia: data.getDate().toString().padStart(2, '0'), 
+      mes: data.toLocaleString('pt-BR', { month: 'short' }).replace('.', ''), 
+      diaSemana: data.toLocaleString('pt-BR', { weekday: 'long' }).split('-')[0], 
+      hora: data.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) 
+    };
+  };
+
+  // --- ADICIONAR AO GOOGLE CALENDAR ---
+  const gerarLinkGoogleCalendar = (culto: EscalaCulto) => {
+    const data = new Date(culto.data_hora);
+    data.setHours(data.getHours() + 3); // Ajusta timezone
+    
+    // Formata para o Google Calendar (YYYYMMDDTHHMMSS sem Z para forçar horário local)
+    const formatDate = (d: Date) => d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + "T" + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + "00";
+    
+    const dataInicio = formatDate(data);
+    const dataFimObj = new Date(data.getTime() + 2 * 60 * 60 * 1000); // Adiciona 2h de duração pro culto
+    const dataFim = formatDate(dataFimObj);
+    
+    const detalhes = `Você está escalado na Recepção!\n\nCulto: ${culto.nome}\nEquipe Boas-Vindas - ICPV`;
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Recepção: " + culto.nome)}&dates=${dataInicio}/${dataFim}&details=${encodeURIComponent(detalhes)}`;
+  };
+
+  // --- CORES DINÂMICAS DOS CARDS ---
+  const getCoresCulto = (nomeCulto: string) => {
+    const nome = nomeCulto.toLowerCase();
+    if (nome.includes('celebração')) return 'bg-yellow-50 border-yellow-200 text-yellow-800';
+    if (nome.includes('família')) return 'bg-green-50 border-green-200 text-green-800';
+    if (nome.includes('onlife')) return 'bg-blue-50 border-blue-200 text-blue-800';
+    return 'bg-orange-50 border-orange-200 text-orange-800'; // Salmão clarinho para extras
   };
 
   return (
@@ -102,7 +158,9 @@ export default function Escalas() {
             <p className="mt-1 text-gray-500">Próximos cultos e equipe escalada</p>
           </div>
           <div className="flex flex-col space-y-3 sm:flex-row sm:space-x-3 sm:space-y-0">
-            <button onClick={abrirModalDisponibilidade} className="rounded-lg border border-blue-600 px-4 py-3 text-base font-bold text-blue-600 transition hover:bg-blue-50">📅 Minha Disponibilidade</button>
+            <button onClick={abrirModalDisponibilidade} className="rounded-lg border border-blue-600 px-4 py-3 text-base font-bold text-blue-600 transition hover:bg-white hover:shadow-sm bg-blue-50">
+              📅 Minha Disponibilidade
+            </button>
             {isAdmin && (
               <>
                 <button onClick={gerarSorteio} disabled={isGerando} className="rounded-lg bg-gray-800 px-4 py-3 text-base font-bold text-white shadow-md transition hover:bg-black disabled:bg-gray-400">⚙️ Gerar Automático</button>
@@ -115,30 +173,46 @@ export default function Escalas() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cultos.map((culto) => {
             const { dia, mes, diaSemana, hora } = formatarData(culto.data_hora);
+            const corTema = getCoresCulto(culto.nome);
+            const escaladoEu = culto.escalas.some(e => e.usuario.id === usuario.id);
+
             return (
-              <div key={culto.id} className="flex overflow-hidden rounded-xl bg-white shadow-sm border border-gray-100">
-                <div className="flex w-24 flex-col items-center justify-center bg-blue-50/50 p-4 border-r border-gray-100">
-                  <span className="text-sm font-semibold text-blue-600 uppercase">{mes}</span>
-                  <span className="text-3xl font-bold text-gray-800">{dia}</span>
+              <div key={culto.id} className={`flex overflow-hidden rounded-xl shadow-sm border transition-shadow hover:shadow-md ${corTema}`}>
+                <div className="flex w-24 flex-col items-center justify-center p-4 border-r border-white/40 bg-white/30 backdrop-blur-sm">
+                  <span className="text-sm font-semibold uppercase opacity-80">{mes}</span>
+                  <span className="text-3xl font-extrabold opacity-90">{dia}</span>
                 </div>
                 <div className="flex flex-1 flex-col justify-center p-4">
-                  <span className="text-xs font-bold uppercase text-gray-400">{diaSemana} • {hora}</span>
-                  <h3 className="mb-3 font-bold text-black text-base leading-tight">{culto.nome}</h3>
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="text-xs font-bold uppercase opacity-70">{diaSemana} • {hora}</span>
+                    
+                    {/* BOTÃO PARA SALVAR NO CALENDÁRIO */}
+                    {escaladoEu && (
+                      <a href={gerarLinkGoogleCalendar(culto)} target="_blank" rel="noopener noreferrer" className="bg-white/80 hover:bg-white px-2 py-1 rounded shadow-sm text-[10px] font-bold uppercase flex items-center gap-1 transition text-gray-800">
+                        <span>🗓️</span> Salvar
+                      </a>
+                    )}
+                  </div>
+                  
+                  <h3 className="mb-3 font-extrabold text-base leading-tight opacity-90">{culto.nome}</h3>
+                  
                   <div className="flex flex-col gap-2">
+                    {culto.escalas.length === 0 && <span className="text-xs font-semibold opacity-60">Aguardando escala</span>}
+                    
                     {culto.escalas.map((escala) => (
-                      <div key={escala.id} className="flex items-center justify-between bg-blue-50 px-2.5 py-1.5 border border-blue-100 rounded">
-                        <span className="text-base font-semibold text-blue-800">{escala.usuario.nome}</span>
+                      <div key={escala.id} className="flex items-center justify-between bg-white/60 px-2.5 py-1.5 border border-white/50 rounded shadow-sm">
+                        <span className="text-sm font-bold opacity-90">{escala.usuario.nome}</span>
                         {isAdmin && (
                           <div className="flex items-center space-x-3">
-                            <button onClick={() => enviarLembreteIndividual(escala.usuario.nome, escala.usuario.telefone, culto.nome, culto.data_hora)} className="text-green-600 hover:text-green-800">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z" /></svg>
+                            <button onClick={() => enviarLembreteIndividual(escala.usuario.nome, escala.usuario.telefone, culto.nome, culto.data_hora)} className="text-green-700 hover:text-green-900 transition">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z" /></svg>
                             </button>
-                            <button onClick={() => removerManual(escala.id)} className="font-bold text-red-500 text-lg">×</button>
+                            <button onClick={() => removerManual(escala.id)} className="font-bold text-red-600 text-lg hover:text-red-800">×</button>
                           </div>
                         )}
                       </div>
                     ))}
-                    {isAdmin && <button onClick={() => setCultoSelecionado(culto.id)} className="border border-dashed border-gray-400 py-1.5 text-sm font-bold text-gray-600 mt-1 rounded hover:bg-gray-100">+ Voluntário</button>}
+                    {isAdmin && <button onClick={() => setCultoSelecionado(culto.id)} className="border border-dashed border-black/20 py-1.5 text-sm font-bold opacity-80 mt-1 rounded hover:bg-white/40 transition">+ Voluntário</button>}
                   </div>
                 </div>
               </div>
@@ -161,6 +235,7 @@ export default function Escalas() {
         </div>
       )}
 
+      {/* MODAL DE DISPONIBILIDADE ATUALIZADO COM SELETOR DE CULTO */}
       {modalDisponibilidadeAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
@@ -170,7 +245,7 @@ export default function Escalas() {
               <div className="mb-4">
                 <p className="text-xs font-bold text-gray-500 mb-2">Já Bloqueados:</p>
                 {bloqueiosSalvos.map(b => (
-                  <span key={b.id} className="inline-flex m-1 rounded bg-red-100 px-3 py-1.5 text-sm font-bold text-red-800">{new Date(b.data_iso + "T12:00:00").toLocaleDateString('pt-BR')} <button onClick={() => removerBloqueioSalvo(b.id)} className="ml-2 text-red-500">×</button></span>
+                  <span key={b.id} className="inline-flex m-1 rounded bg-red-100 px-3 py-1.5 text-xs font-bold text-red-800">{formatarDisplayBloqueio(b.data_iso)} <button onClick={() => removerBloqueioSalvo(b.id)} className="ml-2 text-red-500 text-sm">×</button></span>
                 ))}
               </div>
             )}
@@ -179,21 +254,28 @@ export default function Escalas() {
               <div className="mb-4 border-t pt-2">
                 <p className="text-xs font-bold text-gray-500 mb-2">Novas Datas (Não Salvas):</p>
                 {datasNovas.map(d => (
-                  <span key={d} className="inline-flex m-1 rounded bg-yellow-100 px-3 py-1.5 text-sm font-bold text-yellow-800">{new Date(d + "T12:00:00").toLocaleDateString('pt-BR')} <button onClick={() => setDatasNovas(datasNovas.filter(x => x !== d))} className="ml-2 text-yellow-600">×</button></span>
+                  <span key={d} className="inline-flex m-1 rounded bg-yellow-100 px-3 py-1.5 text-xs font-bold text-yellow-800">{formatarDisplayBloqueio(d)} <button onClick={() => setDatasNovas(datasNovas.filter(x => x !== d))} className="ml-2 text-yellow-600 text-sm">×</button></span>
                 ))}
               </div>
             )}
 
             <div className="mb-6 border-t pt-4">
-              <div className="flex gap-2 mb-3">
-                <input type="date" className="flex-1 rounded border p-3 text-base bg-white" value={novaDataInput} onChange={e => setNovaDataInput(e.target.value)} />
-                <button onClick={adicionarDataNova} className="rounded bg-gray-800 px-4 py-3 text-base text-white font-bold">Add</button>
+              <p className="text-xs font-bold text-gray-500 mb-2">Adicionar novo bloqueio:</p>
+              <div className="flex flex-col gap-2 mb-3">
+                <input type="date" className="w-full rounded border p-3 text-base bg-white" value={novaDataInput} onChange={e => setNovaDataInput(e.target.value)} />
+                <select className="w-full rounded border p-3 text-sm font-semibold bg-white" value={novoCultoBloqueio} onChange={e => setNovoCultoBloqueio(e.target.value)}>
+                  <option value="TODOS">Dia Inteiro (Todos os Cultos)</option>
+                  <option value="Culto da Família">Apenas Culto da Família</option>
+                  <option value="Culto da Celebração">Apenas Culto da Celebração</option>
+                  <option value="Culto Onlife">Apenas Culto Onlife</option>
+                </select>
+                <button onClick={adicionarDataNova} className="rounded bg-gray-800 px-4 py-3 mt-1 text-base text-white font-bold transition hover:bg-black">Adicionar à lista</button>
               </div>
             </div>
             
             <div className="flex gap-2">
-              <button onClick={() => setModalDisponibilidadeAberto(false)} className="w-full rounded bg-gray-100 py-3 text-base font-bold text-gray-700">Fechar</button>
-              <button onClick={salvarNovasDatas} className="w-full rounded bg-blue-600 py-3 text-base font-bold text-white">Salvar</button>
+              <button onClick={() => setModalDisponibilidadeAberto(false)} className="w-full rounded bg-gray-100 py-3 text-base font-bold text-gray-700 hover:bg-gray-200">Fechar</button>
+              <button onClick={salvarNovasDatas} disabled={datasNovas.length === 0} className="w-full rounded bg-blue-600 py-3 text-base font-bold text-white transition hover:bg-blue-700 disabled:bg-blue-300">Salvar Modificações</button>
             </div>
           </div>
         </div>
