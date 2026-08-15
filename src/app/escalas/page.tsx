@@ -122,13 +122,13 @@ export default function Escalas() {
     };
   };
 
-  // --- CORES DINÂMICAS DOS CARDS ---
+  // --- CORES DINÂMICAS DOS CARDS ---
   const getCoresCulto = (nomeCulto: string) => {
     const nome = nomeCulto.toLowerCase();
-    if (nome.includes('celebração')) return 'bg-yellow-25 border-yellow-100 text-yellow-800';
-    if (nome.includes('família')) return 'bg-green-25 border-green-100 text-green-800';
-    if (nome.includes('onlife')) return 'bg-blue-25 border-blue-100 text-blue-800';
-    return 'bg-orange-25 border-orange-100 text-orange-800'; // Salmão clarinho para extras
+    if (nome.includes('celebração')) return 'bg-yellow-50 border-yellow-200 text-yellow-800';
+    if (nome.includes('família')) return 'bg-green-50 border-green-200 text-green-800';
+    if (nome.includes('onlife')) return 'bg-blue-50 border-blue-200 text-blue-800';
+    return 'bg-orange-50 border-orange-200 text-orange-800'; // Salmão clarinho para extras
   };
 
   // --- NOVA FUNÇÃO: BAIXAR TODOS OS EVENTOS DE UMA VEZ ---
