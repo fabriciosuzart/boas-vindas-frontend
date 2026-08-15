@@ -41,12 +41,17 @@ export default function Navbar() {
                 ></div>
             )}
 
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${isDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            {/* Menu Lateral com Flex-Col total para jogar a assinatura pro fundo */}
+            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col ${isDrawerOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                
+                {/* Topo do Menu */}
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                     <span className="font-bold text-gray-800 text-lg">Menu</span>
                     <button onClick={() => setIsDrawerOpen(false)} className="text-gray-500 hover:text-red-500 text-2xl font-bold">×</button>
                 </div>
-                <div className="flex flex-col py-4">
+                
+                {/* Links de Navegação */}
+                <div className="flex flex-col py-4 flex-1">
                     <Link href="/recepcao" onClick={() => setIsDrawerOpen(false)} className={`px-6 py-3 text-base font-semibold ${pathname === '/recepcao' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}>Recepção</Link>
                     <Link href="/escalas" onClick={() => setIsDrawerOpen(false)} className={`px-6 py-3 text-base font-semibold ${pathname === '/escalas' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}>Escalas</Link>
                     
@@ -57,6 +62,13 @@ export default function Navbar() {
                         </>
                     )}
                 </div>
+
+                {/* Assinatura no Rodapé do Menu */}
+                <div className="p-6 border-t border-gray-100 text-center">
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Desenvolvido por</p>
+                    <p className="text-sm font-bold text-blue-600">Fabricio Suzart Andrade</p>
+                </div>
+
             </div>
         </>
     );
