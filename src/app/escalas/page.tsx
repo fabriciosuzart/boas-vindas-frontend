@@ -10,18 +10,18 @@ type EscalaCulto = { id: string; nome: string; data_hora: string; escalas: { id:
 
 export default function Escalas() {
   const router = useRouter();
-  const { usuario } = useAuth();
+  const { usuario } = useAuth(); 
   const [cultos, setCultos] = useState<EscalaCulto[]>([]);
   const [todosUsuarios, setTodosUsuarios] = useState<Usuario[]>([]);
   const [isGerando, setIsGerando] = useState(false);
   const [cultoSelecionado, setCultoSelecionado] = useState<string | null>(null);
-
+  
   // Modal de Disponibilidade
   const [modalDisponibilidadeAberto, setModalDisponibilidadeAberto] = useState(false);
   const [bloqueiosSalvos, setBloqueiosSalvos] = useState<Bloqueio[]>([]);
   const [datasNovas, setDatasNovas] = useState<string[]>([]);
   const [novaDataInput, setNovaDataInput] = useState('');
-  const [novoCultoBloqueio, setNovoCultoBloqueio] = useState('TODOS'); // Novo estado para escolher o culto
+  const [novoCultoBloqueio, setNovoCultoBloqueio] = useState('TODOS');
 
   useEffect(() => { if (!usuario) router.push('/login'); }, [usuario, router]);
 
@@ -44,14 +44,14 @@ export default function Escalas() {
 
   const gerarSorteio = async () => { setIsGerando(true); try { const res = await fetch('https://boas-vindas-backend.onrender.com/escalas/gerar', { method: 'POST' }); if (res.ok) carregarEscalas(); } catch (e) { } finally { setIsGerando(false); } };
   const removerManual = async (id: string) => { await fetch(`https://boas-vindas-backend.onrender.com/escalas/${id}`, { method: 'DELETE' }); carregarEscalas(); };
-
+  
   const confirmarAdicao = async (usuarioId: string, forcar = false) => {
     if (!cultoSelecionado) return;
     try {
       const res = await fetch('https://boas-vindas-backend.onrender.com/escalas/adicionar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ culto_id: cultoSelecionado, usuario_id: usuarioId, forcar }) });
       const data = await res.json();
-      if (res.status === 409) { if (confirm(data.aviso)) confirmarAdicao(usuarioId, true); }
-      else if (res.ok) { setCultoSelecionado(null); carregarEscalas(); }
+      if (res.status === 409) { if (confirm(data.aviso)) confirmarAdicao(usuarioId, true); } 
+      else if (res.ok) { setCultoSelecionado(null); carregarEscalas(); } 
     } catch (e) { }
   };
 
@@ -84,25 +84,23 @@ export default function Escalas() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // --- NOVA LÓGICA DE DISPONIBILIDADE (COM CULTO ESPECÍFICO) ---
+  // --- NOVA LÓGICA DE DISPONIBILIDADE ---
   const abrirModalDisponibilidade = async () => { setDatasNovas([]); setNovaDataInput(''); setNovoCultoBloqueio('TODOS'); try { const res = await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${usuario.id}`); if (res.ok) setBloqueiosSalvos(await res.json()); } catch (e) { } setModalDisponibilidadeAberto(true); };
-
-  const adicionarDataNova = () => {
+  
+  const adicionarDataNova = () => { 
     if (novaDataInput) {
-      // Salva a data combinada com o culto, ou só a data se for o dia todo
       const bloqueioFormatado = novoCultoBloqueio === 'TODOS' ? novaDataInput : `${novaDataInput}::${novoCultoBloqueio}`;
       if (!datasNovas.includes(bloqueioFormatado)) {
-        setDatasNovas([...datasNovas, bloqueioFormatado]);
+        setDatasNovas([...datasNovas, bloqueioFormatado]); 
         setNovaDataInput('');
         setNovoCultoBloqueio('TODOS');
-      }
-    }
+      } 
+    } 
   };
-
+  
   const removerBloqueioSalvo = async (id: string) => { await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${id}`, { method: 'DELETE' }); setBloqueiosSalvos(bloqueiosSalvos.filter(b => b.id !== id)); };
   const salvarNovasDatas = async () => { if (datasNovas.length === 0) return setModalDisponibilidadeAberto(false); try { const res = await fetch('https://boas-vindas-backend.onrender.com/disponibilidade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario_id: usuario.id, datas_iso: datasNovas }) }); if (res.ok) { alert("Agenda atualizada!"); setModalDisponibilidadeAberto(false); carregarEscalas(); } } catch (e) { } };
 
-  // Helper para exibir bonito no modal
   const formatarDisplayBloqueio = (dIso: string) => {
     if (dIso.includes('::')) {
       const [dataStr, cultoStr] = dIso.split('::');
@@ -114,80 +112,80 @@ export default function Escalas() {
   // --- CORREÇÃO DO FUSO HORÁRIO ---
   const formatarData = (dataIso: string) => {
     const data = new Date(dataIso);
-    data.setHours(data.getHours() + 3); // Compensa o fuso horário UTC do Render para mostrar o horário local correto
-
-    return {
-      dia: data.getDate().toString().padStart(2, '0'),
-      mes: data.toLocaleString('pt-BR', { month: 'short' }).replace('.', ''),
-      diaSemana: data.toLocaleString('pt-BR', { weekday: 'long' }).split('-')[0],
-      hora: data.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    data.setHours(data.getHours() + 3); // Compensa o fuso horário
+    
+    return { 
+      dia: data.getDate().toString().padStart(2, '0'), 
+      mes: data.toLocaleString('pt-BR', { month: 'short' }).replace('.', ''), 
+      diaSemana: data.toLocaleString('pt-BR', { weekday: 'long' }).split('-')[0], 
+      hora: data.toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) 
     };
   };
 
-  // --- ADICIONAR AO GOOGLE CALENDAR ---
-  const gerarLinkGoogleCalendar = (culto: EscalaCulto) => {
-    const data = new Date(culto.data_hora);
-    data.setHours(data.getHours() + 3); // Ajusta timezone
-
-    // Formata para o Google Calendar (YYYYMMDDTHHMMSS sem Z para forçar horário local)
-    const formatDate = (d: Date) => d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + "T" + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + "00";
-
-    const dataInicio = formatDate(data);
-    const dataFimObj = new Date(data.getTime() + 2 * 60 * 60 * 1000); // Adiciona 2h de duração pro culto
-    const dataFim = formatDate(dataFimObj);
-
-    const detalhes = `Você está escalado na Recepção!\n\nCulto: ${culto.nome}\nEquipe Boas-Vindas - ICPV`;
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Recepção: " + culto.nome)}&dates=${dataInicio}/${dataFim}&details=${encodeURIComponent(detalhes)}`;
+  // --- CORES DINÂMICAS DOS CARDS ---
+  const getCoresCulto = (nomeCulto: string) => {
+    const nome = nomeCulto.toLowerCase();
+    if (nome.includes('celebração')) return 'bg-yellow-25 border-yellow-100 text-yellow-800';
+    if (nome.includes('família')) return 'bg-green-25 border-green-100 text-green-800';
+    if (nome.includes('onlife')) return 'bg-blue-25 border-blue-100 text-blue-800';
+    return 'bg-orange-50 border-orange-200 text-orange-800'; // Salmão clarinho para extras
   };
 
-  // --- ADICIONAR AO CALENDÁRIO APPLE/ANDROID (.ICS) ---
-  const baixarArquivoICS = (culto: EscalaCulto) => {
-    const data = new Date(culto.data_hora);
-    data.setHours(data.getHours() + 3); // Compensa o fuso
+  // --- NOVA FUNÇÃO: BAIXAR TODOS OS EVENTOS DE UMA VEZ ---
+  const baixarAgendaCompletaICS = () => {
+    // Filtra apenas os cultos onde o usuário atual está escalado
+    const meusCultos = cultos.filter(c => c.escalas.some(e => e.usuario.id === usuario.id));
 
-    const formatDate = (d: Date) => d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + "T" + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + "00";
+    if (meusCultos.length === 0) {
+      alert("Você ainda não está escalado em nenhum culto listado.");
+      return;
+    }
 
-    const dtStart = formatDate(data);
-    const dataFimObj = new Date(data.getTime() + 2 * 60 * 60 * 1000); // 2h de duração
-    const dtEnd = formatDate(dataFimObj);
-
-    // Estrutura padrão do arquivo de calendário universal (com alarme de 1 hora antes)
-    const icsConteudo = [
+    // Estrutura inicial do arquivo
+    let icsConteudo = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
       "CALSCALE:GREGORIAN",
-      "BEGIN:VEVENT",
-      `DTSTART:${dtStart}`,
-      `DTEND:${dtEnd}`,
-      `SUMMARY:Recepção: ${culto.nome}`,
-      `DESCRIPTION:Você está escalado na Recepção!\\n\\nCulto: ${culto.nome}\\nEquipe Boas-Vindas - ICPV`,
-      "BEGIN:VALARM",
-      "ACTION:DISPLAY",
-      "DESCRIPTION:Lembrete de Escala",
-      "TRIGGER:-PT1H", // Alarme 1 hora antes
-      "END:VALARM",
-      "END:VEVENT",
-      "END:VCALENDAR"
-    ].join("\r\n");
+      "PRODID:-//Boas-Vindas ICPV//Escalas//PT-BR"
+    ];
 
-    // Cria o arquivo e força o download (o celular abre automaticamente)
-    const blob = new Blob([icsConteudo], { type: 'text/calendar;charset=utf-8' });
+    const formatDate = (d: Date) => d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + "T" + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + "00";
+
+    // Adiciona um bloco VEVENT para CADA culto que ele está escalado
+    meusCultos.forEach(culto => {
+      const data = new Date(culto.data_hora);
+      data.setHours(data.getHours() + 3); // Compensa o fuso
+
+      const dtStart = formatDate(data);
+      const dataFimObj = new Date(data.getTime() + 2 * 60 * 60 * 1000); // 2h de duração
+      const dtEnd = formatDate(dataFimObj);
+
+      icsConteudo.push(
+        "BEGIN:VEVENT",
+        `DTSTART:${dtStart}`,
+        `DTEND:${dtEnd}`,
+        `SUMMARY:Recepção: ${culto.nome}`,
+        `DESCRIPTION:Você está escalado na Recepção!\\n\\nCulto: ${culto.nome}\\nEquipe Boas-Vindas - ICPV`,
+        "BEGIN:VALARM",
+        "ACTION:DISPLAY",
+        "DESCRIPTION:Lembrete de Escala",
+        "TRIGGER:-PT1H", // Alarme 1 hora antes
+        "END:VALARM",
+        "END:VEVENT"
+      );
+    });
+
+    icsConteudo.push("END:VCALENDAR");
+
+    // Gera o arquivo e força o download
+    const blob = new Blob([icsConteudo.join("\r\n")], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `escala_${culto.nome.replace(/\s+/g, '_').toLowerCase()}.ics`);
+    link.setAttribute('download', `minhas_escalas_icpv.ics`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  // --- CORES DINÂMICAS DOS CARDS ---
-  const getCoresCulto = (nomeCulto: string) => {
-    const nome = nomeCulto.toLowerCase();
-    if (nome.includes('celebração')) return 'bg-yellow-25 border-yellow-175 text-yellow-800';
-    if (nome.includes('família')) return 'bg-green-25 border-green-175 text-green-800';
-    if (nome.includes('onlife')) return 'bg-blue-25 border-blue-175 text-blue-800';
-    return 'bg-orange-50 border-orange-200 text-orange-800'; // Salmão clarinho para extras
   };
 
   return (
@@ -198,10 +196,18 @@ export default function Escalas() {
             <h1 className="text-3xl font-bold text-gray-800">Escala Mensal</h1>
             <p className="mt-1 text-gray-500">Próximos cultos e equipe escalada</p>
           </div>
+          
+          {/* BOTÕES DO TOPO */}
           <div className="flex flex-col space-y-3 sm:flex-row sm:space-x-3 sm:space-y-0">
+            {/* NOVO BOTÃO DE AGENDA NATIVA */}
+            <button onClick={baixarAgendaCompletaICS} className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-bold text-white shadow-md transition hover:bg-indigo-700 flex items-center justify-center gap-2">
+              <span>🗓️</span> Salvar na Agenda
+            </button>
+
             <button onClick={abrirModalDisponibilidade} className="rounded-lg border border-blue-600 px-4 py-3 text-base font-bold text-blue-600 transition hover:bg-white hover:shadow-sm bg-blue-50">
               📅 Minha Disponibilidade
             </button>
+            
             {isAdmin && (
               <>
                 <button onClick={gerarSorteio} disabled={isGerando} className="rounded-lg bg-gray-800 px-4 py-3 text-base font-bold text-white shadow-md transition hover:bg-black disabled:bg-gray-400">⚙️ Gerar Automático</button>
@@ -215,7 +221,6 @@ export default function Escalas() {
           {cultos.map((culto) => {
             const { dia, mes, diaSemana, hora } = formatarData(culto.data_hora);
             const corTema = getCoresCulto(culto.nome);
-            const escaladoEu = culto.escalas.some(e => e.usuario.id === usuario.id);
 
             return (
               <div key={culto.id} className={`flex overflow-hidden rounded-xl shadow-sm border transition-shadow hover:shadow-md ${corTema}`}>
@@ -224,27 +229,13 @@ export default function Escalas() {
                   <span className="text-3xl font-extrabold opacity-90">{dia}</span>
                 </div>
                 <div className="flex flex-1 flex-col justify-center p-4">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-xs font-bold uppercase opacity-70">{diaSemana} • {hora}</span>
-
-                    {/* BOTÃO PARA SALVAR NO CALENDÁRIO */}
-                    {escaladoEu && (
-                      <div className="flex items-center gap-1">
-                        <a href={gerarLinkGoogleCalendar(culto)} target="_blank" rel="noopener noreferrer" title="Google Calendar" className="bg-white/80 hover:bg-white px-2 py-1 rounded shadow-sm text-[10px] font-bold uppercase flex items-center gap-1 transition text-gray-800">
-                          <span>🌐</span> Google
-                        </a>
-                        <button onClick={() => baixarArquivoICS(culto)} title="Apple/Android Calendar" className="bg-white/80 hover:bg-white px-2 py-1 rounded shadow-sm text-[10px] font-bold uppercase flex items-center gap-1 transition text-gray-800">
-                          <span>📱</span> Celular
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
+                  <span className="text-xs font-bold uppercase opacity-70 mb-1">{diaSemana} • {hora}</span>
+                  
                   <h3 className="mb-3 font-extrabold text-base leading-tight opacity-90">{culto.nome}</h3>
-
+                  
                   <div className="flex flex-col gap-2">
                     {culto.escalas.length === 0 && <span className="text-xs font-semibold opacity-60">Aguardando escala</span>}
-
+                    
                     {culto.escalas.map((escala) => (
                       <div key={escala.id} className="flex items-center justify-between bg-white/60 px-2.5 py-1.5 border border-white/50 rounded shadow-sm">
                         <span className="text-sm font-bold opacity-90">{escala.usuario.nome}</span>
@@ -286,7 +277,7 @@ export default function Escalas() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
             <h3 className="font-bold text-gray-800 text-lg border-b pb-2 mb-4">Gerenciar Indisponibilidade</h3>
-
+            
             {bloqueiosSalvos.length > 0 && (
               <div className="mb-4">
                 <p className="text-xs font-bold text-gray-500 mb-2">Já Bloqueados:</p>
@@ -318,7 +309,7 @@ export default function Escalas() {
                 <button onClick={adicionarDataNova} className="rounded bg-gray-800 px-4 py-3 mt-1 text-base text-white font-bold transition hover:bg-black">Adicionar à lista</button>
               </div>
             </div>
-
+            
             <div className="flex gap-2">
               <button onClick={() => setModalDisponibilidadeAberto(false)} className="w-full rounded bg-gray-100 py-3 text-base font-bold text-gray-700 hover:bg-gray-200">Fechar</button>
               <button onClick={salvarNovasDatas} disabled={datasNovas.length === 0} className="w-full rounded bg-blue-600 py-3 text-base font-bold text-white transition hover:bg-blue-700 disabled:bg-blue-300">Salvar Modificações</button>
