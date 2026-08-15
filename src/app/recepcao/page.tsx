@@ -43,19 +43,16 @@ export default function Recepcao() {
 
   const isAdmin = usuario.perfil === 'ADMIN';
 
-  // Máscara de telefone visual
-  const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let valor = e.target.value.replace(/\D/g, ''); 
-    if (valor.length > 11) valor = valor.slice(0, 11);
-    if (valor.length > 10) {
-      valor = valor.replace(/^(\d\d)(\d{5})(\d{4}).*/, '($1) $2-$3');
-    } else if (valor.length > 5) {
-      valor = valor.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, '($1) $2-$3');
-    } else if (valor.length > 2) {
-      valor = valor.replace(/^(\d\d)(\d{0,5})/, '($1) $2');
-    }
-    setFormData({ ...formData, telefone: valor });
-  };
+ // Máscara de telefone visual corrigida (permite apagar)
+ const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  let v = e.target.value.replace(/\D/g, "");
+  v = v.substring(0, 11);
+  if (v.length >= 3 && v.length <= 6) v = `(${v.substring(0, 2)}) ${v.substring(2)}`;
+  else if (v.length >= 7 && v.length <= 10) v = `(${v.substring(0, 2)}) ${v.substring(2, 6)}-${v.substring(6)}`;
+  else if (v.length === 11) v = `(${v.substring(0, 2)}) ${v.substring(2, 7)}-${v.substring(7)}`;
+  
+  setFormData({ ...formData, telefone: v });
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
