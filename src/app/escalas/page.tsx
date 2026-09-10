@@ -10,45 +10,78 @@ type EscalaCulto = { id: string; nome: string; data_hora: string; escalas: { id:
 
 export default function Escalas() {
   const router = useRouter();
-  const { usuario } = useAuth(); 
+  const { usuario, token, logout } = useAuth(); 
   const [cultos, setCultos] = useState<EscalaCulto[]>([]);
   const [todosUsuarios, setTodosUsuarios] = useState<Usuario[]>([]);
   const [isGerando, setIsGerando] = useState(false);
   const [cultoSelecionado, setCultoSelecionado] = useState<string | null>(null);
   
-  // Modal de Disponibilidade
   const [modalDisponibilidadeAberto, setModalDisponibilidadeAberto] = useState(false);
   const [bloqueiosSalvos, setBloqueiosSalvos] = useState<Bloqueio[]>([]);
   const [datasNovas, setDatasNovas] = useState<string[]>([]);
   const [novaDataInput, setNovaDataInput] = useState('');
   const [novoCultoBloqueio, setNovoCultoBloqueio] = useState('TODOS');
 
+  // Helper para lidar com erros 401
+  const checkAuthError = (status: number) => {
+    if (status === 401) {
+      alert("Sua sessão expirou. Faça login novamente.");
+      logout();
+      return true;
+    }
+    return false;
+  };
+
+  const getHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  });
+
   useEffect(() => { if (!usuario) router.push('/login'); }, [usuario, router]);
 
   const carregarEscalas = async () => {
     try {
-      const res = await fetch('https://boas-vindas-backend.onrender.com/escalas');
+      const res = await fetch('https://boas-vindas-backend.onrender.com/escalas', { headers: getHeaders() });
+      if (checkAuthError(res.status)) return;
       if (res.ok) setCultos(await res.json());
     } catch (error) { }
   };
 
   useEffect(() => {
-    if (usuario) {
+    if (usuario && token) {
       carregarEscalas();
-      if (usuario.perfil === 'ADMIN') fetch('https://boas-vindas-backend.onrender.com/usuarios').then(res => res.json()).then(data => setTodosUsuarios(data));
+      if (usuario.perfil === 'ADMIN') {
+        fetch('https://boas-vindas-backend.onrender.com/usuarios', { headers: getHeaders() })
+          .then(res => { if (!checkAuthError(res.status)) return res.json(); })
+          .then(data => { if(data) setTodosUsuarios(data); });
+      }
     }
-  }, [usuario]);
+  }, [usuario, token]);
 
   if (!usuario) return null;
   const isAdmin = usuario.perfil === 'ADMIN';
 
-  const gerarSorteio = async () => { setIsGerando(true); try { const res = await fetch('https://boas-vindas-backend.onrender.com/escalas/gerar', { method: 'POST' }); if (res.ok) carregarEscalas(); } catch (e) { } finally { setIsGerando(false); } };
-  const removerManual = async (id: string) => { await fetch(`https://boas-vindas-backend.onrender.com/escalas/${id}`, { method: 'DELETE' }); carregarEscalas(); };
+  const gerarSorteio = async () => { 
+    setIsGerando(true); 
+    try { 
+      const res = await fetch('https://boas-vindas-backend.onrender.com/escalas/gerar', { method: 'POST', headers: getHeaders() }); 
+      if (checkAuthError(res.status)) return;
+      if (res.ok) carregarEscalas(); 
+    } catch (e) { } 
+    finally { setIsGerando(false); } 
+  };
+  
+  const removerManual = async (id: string) => { 
+    const res = await fetch(`https://boas-vindas-backend.onrender.com/escalas/${id}`, { method: 'DELETE', headers: getHeaders() }); 
+    if (checkAuthError(res.status)) return;
+    carregarEscalas(); 
+  };
   
   const confirmarAdicao = async (usuarioId: string, forcar = false) => {
     if (!cultoSelecionado) return;
     try {
-      const res = await fetch('https://boas-vindas-backend.onrender.com/escalas/adicionar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ culto_id: cultoSelecionado, usuario_id: usuarioId, forcar }) });
+      const res = await fetch('https://boas-vindas-backend.onrender.com/escalas/adicionar', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ culto_id: cultoSelecionado, usuario_id: usuarioId, forcar }) });
+      if (checkAuthError(res.status)) return;
       const data = await res.json();
       if (res.status === 409) { if (confirm(data.aviso)) confirmarAdicao(usuarioId, true); } 
       else if (res.ok) { setCultoSelecionado(null); carregarEscalas(); } 
@@ -84,8 +117,15 @@ export default function Escalas() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // --- NOVA LÓGICA DE DISPONIBILIDADE ---
-  const abrirModalDisponibilidade = async () => { setDatasNovas([]); setNovaDataInput(''); setNovoCultoBloqueio('TODOS'); try { const res = await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${usuario.id}`); if (res.ok) setBloqueiosSalvos(await res.json()); } catch (e) { } setModalDisponibilidadeAberto(true); };
+  const abrirModalDisponibilidade = async () => { 
+    setDatasNovas([]); setNovaDataInput(''); setNovoCultoBloqueio('TODOS'); 
+    try { 
+      const res = await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${usuario.id}`, { headers: getHeaders() }); 
+      if (checkAuthError(res.status)) return;
+      if (res.ok) setBloqueiosSalvos(await res.json()); 
+    } catch (e) { } 
+    setModalDisponibilidadeAberto(true); 
+  };
   
   const adicionarDataNova = () => { 
     if (novaDataInput) {
@@ -98,8 +138,20 @@ export default function Escalas() {
     } 
   };
   
-  const removerBloqueioSalvo = async (id: string) => { await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${id}`, { method: 'DELETE' }); setBloqueiosSalvos(bloqueiosSalvos.filter(b => b.id !== id)); };
-  const salvarNovasDatas = async () => { if (datasNovas.length === 0) return setModalDisponibilidadeAberto(false); try { const res = await fetch('https://boas-vindas-backend.onrender.com/disponibilidade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario_id: usuario.id, datas_iso: datasNovas }) }); if (res.ok) { alert("Agenda atualizada!"); setModalDisponibilidadeAberto(false); carregarEscalas(); } } catch (e) { } };
+  const removerBloqueioSalvo = async (id: string) => { 
+    const res = await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${id}`, { method: 'DELETE', headers: getHeaders() }); 
+    if (checkAuthError(res.status)) return;
+    setBloqueiosSalvos(bloqueiosSalvos.filter(b => b.id !== id)); 
+  };
+
+  const salvarNovasDatas = async () => { 
+    if (datasNovas.length === 0) return setModalDisponibilidadeAberto(false); 
+    try { 
+      const res = await fetch('https://boas-vindas-backend.onrender.com/disponibilidade', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ usuario_id: usuario.id, datas_iso: datasNovas }) }); 
+      if (checkAuthError(res.status)) return;
+      if (res.ok) { alert("Agenda atualizada!"); setModalDisponibilidadeAberto(false); carregarEscalas(); } 
+    } catch (e) { } 
+  };
 
   const formatarDisplayBloqueio = (dIso: string) => {
     if (dIso.includes('::')) {
@@ -109,10 +161,9 @@ export default function Escalas() {
     return `${new Date(dIso + "T12:00:00").toLocaleDateString('pt-BR')} (Dia Todo)`;
   };
 
-  // --- CORREÇÃO DO FUSO HORÁRIO ---
   const formatarData = (dataIso: string) => {
     const data = new Date(dataIso);
-    data.setHours(data.getHours() + 3); // Compensa o fuso horário
+    data.setHours(data.getHours() + 3); 
     
     return { 
       dia: data.getDate().toString().padStart(2, '0'), 
@@ -122,18 +173,7 @@ export default function Escalas() {
     };
   };
 
-  // --- CORES DINÂMICAS DOS CARDS ---
-  const getCoresCulto = (nomeCulto: string) => {
-    const nome = nomeCulto.toLowerCase();
-    if (nome.includes('celebração')) return 'bg-yellow-50 border-yellow-200 text-yellow-800';
-    if (nome.includes('família')) return 'bg-green-50 border-green-200 text-green-800';
-    if (nome.includes('onlife')) return 'bg-blue-50 border-blue-200 text-blue-800';
-    return 'bg-orange-50 border-orange-200 text-orange-800'; // Salmão clarinho para extras
-  };
-
-  // --- NOVA FUNÇÃO: BAIXAR TODOS OS EVENTOS DE UMA VEZ ---
   const baixarAgendaCompletaICS = () => {
-    // Filtra apenas os cultos onde o usuário atual está escalado
     const meusCultos = cultos.filter(c => c.escalas.some(e => e.usuario.id === usuario.id));
 
     if (meusCultos.length === 0) {
@@ -141,7 +181,6 @@ export default function Escalas() {
       return;
     }
 
-    // Estrutura inicial do arquivo
     let icsConteudo = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
@@ -151,13 +190,12 @@ export default function Escalas() {
 
     const formatDate = (d: Date) => d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + "T" + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + "00";
 
-    // Adiciona um bloco VEVENT para CADA culto que ele está escalado
     meusCultos.forEach(culto => {
       const data = new Date(culto.data_hora);
-      data.setHours(data.getHours() + 3); // Compensa o fuso
+      data.setHours(data.getHours() + 3); 
 
       const dtStart = formatDate(data);
-      const dataFimObj = new Date(data.getTime() + 2 * 60 * 60 * 1000); // 2h de duração
+      const dataFimObj = new Date(data.getTime() + 2 * 60 * 60 * 1000); 
       const dtEnd = formatDate(dataFimObj);
 
       icsConteudo.push(
@@ -169,7 +207,7 @@ export default function Escalas() {
         "BEGIN:VALARM",
         "ACTION:DISPLAY",
         "DESCRIPTION:Lembrete de Escala",
-        "TRIGGER:-PT1H", // Alarme 1 hora antes
+        "TRIGGER:-PT1H",
         "END:VALARM",
         "END:VEVENT"
       );
@@ -177,7 +215,6 @@ export default function Escalas() {
 
     icsConteudo.push("END:VCALENDAR");
 
-    // Gera o arquivo e força o download
     const blob = new Blob([icsConteudo.join("\r\n")], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -269,7 +306,6 @@ export default function Escalas() {
         </div>
       )}
 
-      {/* MODAL DE DISPONIBILIDADE */}
       {modalDisponibilidadeAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">

@@ -23,7 +23,7 @@ type Visitante = {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { usuario, logout } = useAuth(); 
+  const { usuario, token, logout } = useAuth(); 
 
   const [visitantes, setVisitantes] = useState<Visitante[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -32,23 +32,35 @@ export default function Dashboard() {
   const [dataAtual, setDataAtual] = useState(new Date());
   const [modoAnual, setModoAnual] = useState(false);
 
-  // Estados do Modal do WhatsApp
   const [modalZapAberto, setModalZapAberto] = useState(false);
   const [visitanteSelecionado, setVisitanteSelecionado] = useState<Visitante | null>(null);
   const [textoMensagem, setTextoMensagem] = useState('');
 
-  // Estados do Modal de Edição
   const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false);
   const [visitanteEditando, setVisitanteEditando] = useState<Visitante | null>(null);
   const [formEdicao, setFormEdicao] = useState({
     nome: '', telefone: '', faixa_etaria: '', veio_com: '', observacoes: ''
   });
 
+  const checkAuthError = (status: number) => {
+    if (status === 401) {
+      alert("Sua sessão expirou. Faça login novamente.");
+      logout();
+      return true;
+    }
+    return false;
+  };
+
+  const getHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  });
+
   useEffect(() => {
     if (!usuario) router.push('/login');
     else if (usuario.perfil !== 'ADMIN') router.push('/recepcao');
-    else carregarVisitantes();
-  }, [usuario, router, dataAtual, modoAnual]);
+    else if (token) carregarVisitantes();
+  }, [usuario, token, router, dataAtual, modoAnual]);
 
   const carregarVisitantes = async () => {
     setCarregando(true);
@@ -56,7 +68,8 @@ export default function Dashboard() {
       const ano = dataAtual.getFullYear();
       const mes = modoAnual ? 'todos' : dataAtual.getMonth() + 1;
       
-      const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${ano}/${mes}`);
+      const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${ano}/${mes}`, { headers: getHeaders() });
+      if (checkAuthError(res.status)) return;
       if (res.ok) setVisitantes(await res.json());
     } catch (error) { 
       console.error("Erro ao buscar visitantes"); 
@@ -83,12 +96,12 @@ export default function Dashboard() {
     ? `Ano de ${dataAtual.getFullYear()}` 
     : dataAtual.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
 
-  // --- LÓGICA DE EXCLUSÃO ---
   const excluirVisitante = async (id: string, nome: string) => {
     if (!window.confirm(`Tem certeza que deseja excluir permanentemente o registro de ${nome}?`)) return;
 
     try {
-      const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${id}`, { method: 'DELETE' });
+      const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${id}`, { method: 'DELETE', headers: getHeaders() });
+      if (checkAuthError(res.status)) return;
       if (res.ok) {
         setVisitantes(visitantes.filter(v => v.id !== id));
       } else {
@@ -99,11 +112,9 @@ export default function Dashboard() {
     }
   };
 
-  // --- LÓGICA DE EDIÇÃO ---
   const abrirModalEdicao = (v: Visitante) => {
     setVisitanteEditando(v);
     
-    // Formata o telefone já existente para exibir bonitinho no input
     let tel = v.visitante.telefone || '';
     if (tel.length === 11) tel = `(${tel.substring(0, 2)}) ${tel.substring(2, 7)}-${tel.substring(7)}`;
     else if (tel.length === 10) tel = `(${tel.substring(0, 2)}) ${tel.substring(2, 6)}-${tel.substring(6)}`;
@@ -127,7 +138,7 @@ export default function Dashboard() {
 
       const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${visitanteEditando.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({
           nome: formEdicao.nome,
           telefone: telefoneLimpo,
@@ -136,6 +147,8 @@ export default function Dashboard() {
           observacoes: formEdicao.observacoes
         })
       });
+
+      if (checkAuthError(res.status)) return;
 
       if (res.ok) {
         const registroAtualizado = await res.json();
@@ -149,7 +162,6 @@ export default function Dashboard() {
     }
   };
 
-  // MÁSCARA DE TELEFONE CORRIGIDA PARA PERMITIR APAGAR
   const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let v = e.target.value.replace(/\D/g, "");
     v = v.substring(0, 11);
@@ -159,14 +171,14 @@ export default function Dashboard() {
     setFormEdicao({ ...formEdicao, telefone: v });
   };
 
-  // --- LÓGICA DE STATUS E WHATSAPP ---
   const alterarStatus = async (id: string, novoStatus: string) => {
     try {
       const res = await fetch(`https://boas-vindas-backend.onrender.com/registros/${id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ status: novoStatus })
       });
+      if (checkAuthError(res.status)) return;
       if (res.ok) setVisitantes(visitantes.map(v => v.id === id ? { ...v, status: novoStatus } : v));
     } catch (error) { alert("Erro ao mudar o status."); }
   };
@@ -268,7 +280,6 @@ export default function Dashboard() {
               </button>
             </div>
             
-            {/* CORREÇÃO DO SELETOR DE ANO/MÊS AQUI */}
             <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full sm:w-auto">
               <button 
                 onClick={() => modoAnual ? mudarAno(-1) : mudarMes(-1)} 
@@ -444,7 +455,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* MODAIS (WhatsApp e Edição) */}
       {modalZapAberto && visitanteSelecionado && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">

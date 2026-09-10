@@ -20,12 +20,26 @@ export default function AdminPage() {
     const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
     const [isProcessando, setIsProcessando] = useState(false);
 
-    const { usuario, logout } = useAuth();
+    const { usuario, token, logout } = useAuth();
     const router = useRouter();
 
     const [gerarFamilia, setGerarFamilia] = useState(true);
     const [gerarCelebracao, setGerarCelebracao] = useState(true);
     const [gerarOnlife, setGerarOnlife] = useState(true);
+
+    const checkAuthError = (status: number) => {
+        if (status === 401) {
+            alert("Sua sessão expirou. Faça login novamente.");
+            logout();
+            return true;
+        }
+        return false;
+    };
+
+    const getHeaders = () => ({
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    });
 
     useEffect(() => {
         if (!usuario) router.push('/login');
@@ -42,15 +56,19 @@ export default function AdminPage() {
     };
 
     const carregarDados = async () => {
+        if (!token) return;
         try {
-            const resU = await fetch('https://boas-vindas-backend.onrender.com/usuarios');
+            const resU = await fetch('https://boas-vindas-backend.onrender.com/usuarios', { headers: getHeaders() });
+            if (checkAuthError(resU.status)) return;
             if (resU.ok) setUsuarios(await resU.json());
-            const resC = await fetch('https://boas-vindas-backend.onrender.com/cultos');
+
+            const resC = await fetch('https://boas-vindas-backend.onrender.com/cultos', { headers: getHeaders() });
+            if (checkAuthError(resC.status)) return;
             if (resC.ok) setCultos(await resC.json());
         } catch (error) { console.error(error); }
     };
 
-    useEffect(() => { carregarDados(); }, []);
+    useEffect(() => { carregarDados(); }, [token]);
 
     const handleSalvarVoluntario = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -59,7 +77,8 @@ export default function AdminPage() {
         try {
             const url = editandoId ? `https://boas-vindas-backend.onrender.com/usuarios/${editandoId}` : 'https://boas-vindas-backend.onrender.com/usuarios';
             const method = editandoId ? 'PUT' : 'POST';
-            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: novoNome, telefone: telefoneLimpo, senha_hash: '123', perfil: novoPerfil }) });
+            const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify({ nome: novoNome, telefone: telefoneLimpo, senha_hash: '123', perfil: novoPerfil }) });
+            if (checkAuthError(res.status)) return;
             if (res.ok) {
                 alert(editandoId ? "Atualizado!" : "Cadastrado com sucesso!");
                 setNovoNome(''); setNovoTelefone(''); setEditandoId(null); setNovoPerfil('VOLUNTARIO');
@@ -79,7 +98,8 @@ export default function AdminPage() {
     const handleDeleteUsuario = async (id: string, nome: string) => {
         if (!window.confirm(`Tem certeza que deseja remover "${nome}"?`)) return;
         try {
-            const res = await fetch(`https://boas-vindas-backend.onrender.com/usuarios/${id}`, { method: 'DELETE' });
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/usuarios/${id}`, { method: 'DELETE', headers: getHeaders() });
+            if (checkAuthError(res.status)) return;
             if (res.ok) carregarDados();
         } catch (err) { alert("Erro ao remover."); }
     };
@@ -92,7 +112,8 @@ export default function AdminPage() {
         if (gerarCelebracao) templates.push({ diaSemana: 0, hora: 19, minuto: 0, nome: "Culto da Celebração" });
         if (gerarOnlife) templates.push({ diaSemana: 6, hora: 19, minuto: 0, nome: "Culto Onlife" });
         try {
-            const res = await fetch('https://boas-vindas-backend.onrender.com/cultos/gerar-mes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ano: Number(anoSelecionado), mes: Number(mesSelecionado), templates }) });
+            const res = await fetch('https://boas-vindas-backend.onrender.com/cultos/gerar-mes', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ ano: Number(anoSelecionado), mes: Number(mesSelecionado), templates }) });
+            if (checkAuthError(res.status)) return;
             const data = await res.json();
             if (res.ok) { alert(data.mensagem); carregarDados(); } else alert(data.erro);
         } catch (err) { alert("Erro ao conectar."); } finally { setIsProcessando(false); }
@@ -101,7 +122,8 @@ export default function AdminPage() {
     const handleAddCultoManual = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('https://boas-vindas-backend.onrender.com/cultos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: nomeCultoManual, data_hora: dataCultoManual }) });
+            const res = await fetch('https://boas-vindas-backend.onrender.com/cultos', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ nome: nomeCultoManual, data_hora: dataCultoManual }) });
+            if (checkAuthError(res.status)) return;
             if (res.ok) {
                 alert("Culto extra cadastrado com sucesso!");
                 router.push('/escalas');
@@ -111,15 +133,19 @@ export default function AdminPage() {
 
     const handleDeleteCulto = async (id: string, nome: string) => {
         if (!window.confirm(`Remover o culto "${nome}"?`)) return;
-        try { const res = await fetch(`https://boas-vindas-backend.onrender.com/cultos/${id}`, { method: 'DELETE' }); if (res.ok) carregarDados(); } catch (err) { }
+        try { 
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/cultos/${id}`, { method: 'DELETE', headers: getHeaders() }); 
+            if (checkAuthError(res.status)) return;
+            if (res.ok) carregarDados(); 
+        } catch (err) { }
     };
 
-    // FUNÇÕES DE LIMPEZA RESTAURADAS
     const limparEscalasDoMes = async () => {
         if (!window.confirm(`Tem certeza que deseja apagar TODAS as escalas do mês ${mesSelecionado}/${anoSelecionado}?`)) return;
         setIsProcessando(true);
         try {
-            const res = await fetch(`https://boas-vindas-backend.onrender.com/escalas/mes/${anoSelecionado}/${mesSelecionado}`, { method: 'DELETE' });
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/escalas/mes/${anoSelecionado}/${mesSelecionado}`, { method: 'DELETE', headers: getHeaders() });
+            if (checkAuthError(res.status)) return;
             if (res.ok) { alert("✅ Escalas do mês foram limpas com sucesso!"); carregarDados(); }
         } catch (error) { } finally { setIsProcessando(false); }
     };
@@ -128,7 +154,8 @@ export default function AdminPage() {
         if (!window.confirm(`ATENÇÃO: Você vai apagar TODOS os Cultos e escalas do mês ${mesSelecionado}/${anoSelecionado}. Continuar?`)) return;
         setIsProcessando(true);
         try {
-            const res = await fetch(`https://boas-vindas-backend.onrender.com/cultos/${anoSelecionado}/${mesSelecionado}`, { method: 'DELETE' });
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/cultos/${anoSelecionado}/${mesSelecionado}`, { method: 'DELETE', headers: getHeaders() });
+            if (checkAuthError(res.status)) return;
             if (res.ok) { alert("✅ Cultos do mês apagados com sucesso!"); carregarDados(); }
         } catch (error) { } finally { setIsProcessando(false); }
     };
@@ -139,7 +166,8 @@ export default function AdminPage() {
         if (confirmacaoDigitada !== 'ZERAR') return alert("Cancelado.");
         setIsProcessando(true);
         try {
-            const res = await fetch(`https://boas-vindas-backend.onrender.com/sistema/zerar-tudo`, { method: 'DELETE' });
+            const res = await fetch(`https://boas-vindas-backend.onrender.com/sistema/zerar-tudo`, { method: 'DELETE', headers: getHeaders() });
+            if (checkAuthError(res.status)) return;
             if (res.ok) { alert("💥 SISTEMA ZERADO COM SUCESSO!"); carregarDados(); }
         } catch (error) { } finally { setIsProcessando(false); }
     };
@@ -216,7 +244,6 @@ export default function AdminPage() {
                     </div>
                 </div>
 
-                {/* ZONA DE PERIGO RESTAURADA */}
                 <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100 mb-8">
                     <h2 className="mb-4 text-xl font-bold text-gray-800 border-b pb-2">Manutenção e Limpeza</h2>
                     <div className="flex flex-col sm:flex-row gap-4 mb-8">
