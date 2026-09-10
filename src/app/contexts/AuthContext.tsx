@@ -12,7 +12,8 @@ type Usuario = {
 
 type AuthContextType = {
   usuario: Usuario | null;
-  login: (user: Usuario) => void;
+  token: string | null; // <-- Adicionamos o Token aqui
+  login: (user: Usuario, token: string) => void; // <-- O login agora exige o Token
   logout: () => void;
 };
 
@@ -21,24 +22,32 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   
-  // A MÁGICA ACONTECE AQUI: 
-  // Em vez de começar vazio, o sistema procura no cache do navegador antes de carregar a tela!
+  // Puxa o Usuário do Cache
   const [usuario, setUsuario] = useState<Usuario | null>(() => {
     if (typeof window !== 'undefined') {
       const userSalvo = localStorage.getItem('@BoasVindas:usuario');
-      if (userSalvo) {
-        return JSON.parse(userSalvo);
-      }
+      if (userSalvo) return JSON.parse(userSalvo);
     }
     return null;
   });
 
-  const login = (user: Usuario) => {
+  // Puxa o Token do Cache
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('@BoasVindas:token');
+    }
+    return null;
+  });
+
+  // A função de login agora recebe os dois dados
+  const login = (user: Usuario, jwtToken: string) => {
     setUsuario(user);
-    // Salva o usuário no cache do navegador
-    localStorage.setItem('@BoasVindas:usuario', JSON.stringify(user));
+    setToken(jwtToken);
     
-    // Manda para o lugar certo dependendo de quem é
+    // Salva os dois no navegador
+    localStorage.setItem('@BoasVindas:usuario', JSON.stringify(user));
+    localStorage.setItem('@BoasVindas:token', jwtToken);
+    
     if (user.perfil === 'ADMIN') {
       router.push('/dashboard');
     } else {
@@ -48,13 +57,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUsuario(null);
-    // Limpa o cache do navegador ao sair
+    setToken(null);
+    
+    // Limpa os dois ao sair
     localStorage.removeItem('@BoasVindas:usuario');
+    localStorage.removeItem('@BoasVindas:token');
     router.push('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ usuario, login, logout }}>
+    <AuthContext.Provider value={{ usuario, token, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

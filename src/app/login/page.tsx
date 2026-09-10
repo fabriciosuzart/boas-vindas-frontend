@@ -37,7 +37,7 @@ export default function LoginPage() {
 
       const data = await res.json();
       if (res.ok) {
-        login(data.usuario);
+        login(data.usuario, data.token);
       } else {
         setErro(data.erro || "Telefone ou senha incorretos.");
       }
