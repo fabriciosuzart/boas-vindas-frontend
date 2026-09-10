@@ -21,8 +21,10 @@ export default function Escalas() {
   const [datasNovas, setDatasNovas] = useState<string[]>([]);
   const [novaDataInput, setNovaDataInput] = useState('');
   const [novoCultoBloqueio, setNovoCultoBloqueio] = useState('TODOS');
+  
+  // Estado para o Toggle do Mês Inteiro
+  const [bloquearMesInteiro, setBloquearMesInteiro] = useState(false);
 
-  // Helper para lidar com erros 401
   const checkAuthError = (status: number) => {
     if (status === 401) {
       alert("Sua sessão expirou. Faça login novamente.");
@@ -118,7 +120,10 @@ export default function Escalas() {
   };
 
   const abrirModalDisponibilidade = async () => { 
-    setDatasNovas([]); setNovaDataInput(''); setNovoCultoBloqueio('TODOS'); 
+    setDatasNovas([]); 
+    setNovaDataInput(''); 
+    setNovoCultoBloqueio('TODOS'); 
+    setBloquearMesInteiro(false); // Inicia desativado por padrão
     try { 
       const res = await fetch(`https://boas-vindas-backend.onrender.com/disponibilidade/${usuario.id}`, { headers: getHeaders() }); 
       if (checkAuthError(res.status)) return;
@@ -127,6 +132,19 @@ export default function Escalas() {
     setModalDisponibilidadeAberto(true); 
   };
   
+  const handleToggleMesInteiro = (ativo: boolean) => {
+    setBloquearMesInteiro(ativo);
+    if (ativo) {
+      // Coleta as datas únicas dos cultos disponíveis no mês
+      const datasDoMes = Array.from(
+        new Set(cultos.map(c => c.data_hora.split('T')[0]))
+      );
+      setDatasNovas(datasDoMes);
+    } else {
+      setDatasNovas([]);
+    }
+  };
+
   const adicionarDataNova = () => { 
     if (novaDataInput) {
       const bloqueioFormatado = novoCultoBloqueio === 'TODOS' ? novaDataInput : `${novaDataInput}::${novoCultoBloqueio}`;
@@ -306,42 +324,83 @@ export default function Escalas() {
         </div>
       )}
 
+      {/* MODAL DE DISPONIBILIDADE COM TOGGLE DE MÊS INTEIRO */}
       {modalDisponibilidadeAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
             <h3 className="font-bold text-gray-800 text-lg border-b pb-2 mb-4">Gerenciar Indisponibilidade</h3>
             
+            {/* TOGGLE BUTTON */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 border rounded-lg mb-4">
+              <div>
+                <p className="text-sm font-bold text-gray-800">Indisponível para o mês inteiro</p>
+                <p className="text-xs text-gray-500">Bloqueia todos os cultos deste período</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleToggleMesInteiro(!bloquearMesInteiro)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  bloquearMesInteiro ? 'bg-red-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    bloquearMesInteiro ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
             {bloqueiosSalvos.length > 0 && (
               <div className="mb-4">
                 <p className="text-xs font-bold text-gray-500 mb-2">Já Bloqueados:</p>
-                {bloqueiosSalvos.map(b => (
-                  <span key={b.id} className="inline-flex m-1 rounded bg-red-100 px-3 py-1.5 text-xs font-bold text-red-800">{formatarDisplayBloqueio(b.data_iso)} <button onClick={() => removerBloqueioSalvo(b.id)} className="ml-2 text-red-500 text-sm">×</button></span>
-                ))}
+                <div className="max-h-24 overflow-y-auto">
+                  {bloqueiosSalvos.map(b => (
+                    <span key={b.id} className="inline-flex m-1 rounded bg-red-100 px-3 py-1.5 text-xs font-bold text-red-800">
+                      {formatarDisplayBloqueio(b.data_iso)} 
+                      <button onClick={() => removerBloqueioSalvo(b.id)} className="ml-2 text-red-500 text-sm">×</button>
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
             {datasNovas.length > 0 && (
               <div className="mb-4 border-t pt-2">
-                <p className="text-xs font-bold text-gray-500 mb-2">Novas Datas (Não Salvas):</p>
-                {datasNovas.map(d => (
-                  <span key={d} className="inline-flex m-1 rounded bg-yellow-100 px-3 py-1.5 text-xs font-bold text-yellow-800">{formatarDisplayBloqueio(d)} <button onClick={() => setDatasNovas(datasNovas.filter(x => x !== d))} className="ml-2 text-yellow-600 text-sm">×</button></span>
-                ))}
+                <p className="text-xs font-bold text-gray-500 mb-2">Novos Bloqueios (Não Salvos):</p>
+                <div className="max-h-24 overflow-y-auto">
+                  {datasNovas.map(d => (
+                    <span key={d} className="inline-flex m-1 rounded bg-yellow-100 px-3 py-1.5 text-xs font-bold text-yellow-800">
+                      {formatarDisplayBloqueio(d)} 
+                      {!bloquearMesInteiro && (
+                        <button onClick={() => setDatasNovas(datasNovas.filter(x => x !== d))} className="ml-2 text-yellow-600 text-sm">×</button>
+                      )}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div className="mb-6 border-t pt-4">
-              <p className="text-xs font-bold text-gray-500 mb-2">Adicionar novo bloqueio:</p>
-              <div className="flex flex-col gap-2 mb-3">
-                <input type="date" className="w-full rounded border p-3 text-base bg-white" value={novaDataInput} onChange={e => setNovaDataInput(e.target.value)} />
-                <select className="w-full rounded border p-3 text-sm font-semibold bg-white" value={novoCultoBloqueio} onChange={e => setNovoCultoBloqueio(e.target.value)}>
-                  <option value="TODOS">Dia Inteiro (Todos os Cultos)</option>
-                  <option value="Culto da Família">Apenas Culto da Família</option>
-                  <option value="Culto da Celebração">Apenas Culto da Celebração</option>
-                  <option value="Culto Onlife">Apenas Culto Onlife</option>
-                </select>
-                <button onClick={adicionarDataNova} className="rounded bg-gray-800 px-4 py-3 mt-1 text-base text-white font-bold transition hover:bg-black">Adicionar à lista</button>
+            {/* CAMPOS DE ADIÇÃO MANUAL (OCULTADOS SE O TOGGLE ESTIVER ATIVO) */}
+            {!bloquearMesInteiro ? (
+              <div className="mb-6 border-t pt-4">
+                <p className="text-xs font-bold text-gray-500 mb-2">Adicionar novo bloqueio:</p>
+                <div className="flex flex-col gap-2 mb-3">
+                  <input type="date" className="w-full rounded border p-3 text-base bg-white" value={novaDataInput} onChange={e => setNovaDataInput(e.target.value)} />
+                  <select className="w-full rounded border p-3 text-sm font-semibold bg-white" value={novoCultoBloqueio} onChange={e => setNovoCultoBloqueio(e.target.value)}>
+                    <option value="TODOS">Dia Inteiro (Todos os Cultos)</option>
+                    <option value="Culto da Família">Apenas Culto da Família</option>
+                    <option value="Culto da Celebração">Apenas Culto da Celebração</option>
+                    <option value="Culto Onlife">Apenas Culto Onlife</option>
+                  </select>
+                  <button onClick={adicionarDataNova} className="rounded bg-gray-800 px-4 py-3 mt-1 text-base text-white font-bold transition hover:bg-black">Adicionar à lista</button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-lg text-center">
+                <p className="text-xs font-bold text-red-700">Todas as datas disponíveis neste mês foram marcadas para bloqueio.</p>
+              </div>
+            )}
             
             <div className="flex gap-2">
               <button onClick={() => setModalDisponibilidadeAberto(false)} className="w-full rounded bg-gray-100 py-3 text-base font-bold text-gray-700 hover:bg-gray-200">Fechar</button>
