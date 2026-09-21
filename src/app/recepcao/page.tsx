@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function Recepcao() {
   const router = useRouter();
-  // Agora puxamos também o token do nosso Contexto!
   const { usuario, token, logout } = useAuth(); 
 
   const [isLoading, setIsLoading] = useState(false);
@@ -22,36 +21,49 @@ export default function Recepcao() {
   const [cultoHoje, setCultoHoje] = useState<{ id: string; nome: string } | null>(null);
   const [erroCulto, setErroCulto] = useState('');
 
-  // BUSCA DO CULTO DO DIA (AGORA COM O TOKEN DE SEGURANÇA)
+  // --- NOVOS ESTADOS PARA O MODO RETROATIVO (ADMIN) ---
+  const [cultosAdmin, setCultosAdmin] = useState<{ id: string; nome: string; data_hora: string }[]>([]);
+  const [modoRetroativo, setModoRetroativo] = useState(false);
+  const [cultoRetroativoId, setCultoRetroativoId] = useState('');
+
   useEffect(() => {
     if (!usuario) {
       router.push('/login');
     } else {
+      // 1. Busca o culto do dia (para o fluxo normal)
       fetch('https://boas-vindas-backend.onrender.com/cultos/hoje', {
-        // Envia o crachá (Token JWT) para o Backend abrir a porta
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => {
-          // Se o token for inválido, o back devolve 401. Nesse caso, deslogamos o usuário à força!
-          if (res.status === 401) {
-            logout();
-            throw new Error('Sessão expirada');
-          }
+          if (res.status === 401) { logout(); throw new Error('Sessão expirada'); }
           if (!res.ok) throw new Error('Sem culto');
           return res.json();
         })
         .then(data => setCultoHoje(data))
         .catch((e) => {
           if (e.message === 'Sem culto') {
-            setErroCulto("⚠️ Atenção: Não há nenhum culto gerado no sistema para o dia de hoje. Você não conseguirá salvar visitantes.");
+            setErroCulto("⚠️ Atenção: Não há nenhum culto gerado no sistema para o dia de hoje.");
           }
         });
+
+      // 2. Se for ADMIN, já carrega todos os cultos do banco em segundo plano para o modo retroativo
+      if (usuario.perfil === 'ADMIN') {
+         fetch('https://boas-vindas-backend.onrender.com/cultos', {
+            headers: { 'Authorization': `Bearer ${token}` }
+         })
+         .then(res => res.json())
+         .then(data => {
+            // Organiza do culto mais recente para o mais antigo
+            const ordenados = data.sort((a: any, b: any) => new Date(b.data_hora).getTime() - new Date(a.data_hora).getTime());
+            setCultosAdmin(ordenados);
+         })
+         .catch(err => console.error("Erro ao buscar histórico de cultos", err));
+      }
     }
   }, [usuario, token, router, logout]);
 
   if (!usuario) return null;
+  const isAdmin = usuario.perfil === 'ADMIN';
 
   const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let v = e.target.value.replace(/\D/g, "");
@@ -66,11 +78,19 @@ export default function Recepcao() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!cultoHoje) {
-      alert("Não é possível salvar: não há culto cadastrado para a data de hoje no sistema.");
+    // Travas de segurança dependendo do modo ativo
+    if (!modoRetroativo && !cultoHoje) {
+      alert("Não é possível salvar: não há culto para hoje. Se você for Admin, ative o Modo Retroativo.");
       return;
     }
 
+    if (modoRetroativo && !cultoRetroativoId) {
+      alert("Selecione um culto da lista para realizar o lançamento retroativo.");
+      return;
+    }
+
+    // Define de qual culto será o registro
+    const cultoFinalId = modoRetroativo ? cultoRetroativoId : cultoHoje?.id;
     setIsLoading(true);
     const telefoneLimpo = formData.telefone.replace(/\D/g, '');
 
@@ -79,7 +99,7 @@ export default function Recepcao() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // <-- O Token vai aqui também!
+          'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({
           nome: formData.nome,
@@ -88,7 +108,7 @@ export default function Recepcao() {
           veio_com: formData.veio_com,
           primeira_vez: formData.primeira_vez,
           observacoes: formData.observacoes,
-          culto_id: cultoHoje.id, 
+          culto_id: cultoFinalId, 
           responsavel_id: usuario.id 
         })
       });
@@ -113,6 +133,13 @@ export default function Recepcao() {
     }
   };
 
+  // Função para formatar a data da lista retroativa
+  const formatarData = (dataIso: string) => {
+    const d = new Date(dataIso);
+    d.setHours(d.getHours() + 3); // Compensa fuso
+    return d.toLocaleDateString('pt-BR');
+  };
+
   return (
     <main className="min-h-screen bg-gray-50 pb-24 pt-8">
       <div className="mx-auto max-w-md rounded-xl bg-white p-6 shadow-md border border-gray-100">
@@ -122,19 +149,58 @@ export default function Recepcao() {
           <p className="text-sm text-gray-500">Igreja Cem Porcento Vida</p>
         </div>
 
-        {erroCulto ? (
-          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 font-semibold border border-red-100 text-center">
-            {erroCulto}
+        {/* MODO ADMIN: TOGGLE DE LANÇAMENTO RETROATIVO */}
+        {isAdmin && (
+          <div className={`mb-5 flex items-center justify-center space-x-3 rounded-lg border p-3 transition-colors ${modoRetroativo ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-200'}`}>
+             <input 
+               type="checkbox" 
+               id="retroativo"
+               className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+               checked={modoRetroativo}
+               onChange={(e) => {
+                 setModoRetroativo(e.target.checked);
+                 setCultoRetroativoId(''); // Reseta a escolha ao alternar
+               }}
+             />
+             <label htmlFor="retroativo" className={`text-sm font-bold cursor-pointer ${modoRetroativo ? 'text-indigo-800' : 'text-gray-600'}`}>
+               Modo Lançamento Retroativo
+             </label>
           </div>
-        ) : cultoHoje ? (
-          <div className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700 font-semibold border border-green-100 text-center">
-            ✅ Registrando para: {cultoHoje.nome}
-          </div>
-        ) : (
-          <div className="mb-4 text-center text-sm text-gray-500 font-medium">Buscando culto de hoje...</div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 flex flex-col">
+        {/* DECIDE O QUE EXIBIR NO CABEÇALHO COM BASE NO MODO */}
+        {modoRetroativo ? (
+          <div className="mb-5">
+            <label className="mb-1 block text-sm font-bold text-indigo-800">Selecione o Culto Passado *</label>
+            <select 
+              className="w-full rounded-lg border-2 border-indigo-200 bg-indigo-50/50 p-3 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-indigo-900 font-semibold"
+              value={cultoRetroativoId}
+              onChange={e => setCultoRetroativoId(e.target.value)}
+            >
+              <option value="">-- Escolha da lista --</option>
+              {cultosAdmin.map(c => (
+                <option key={c.id} value={c.id}>{c.nome} ({formatarData(c.data_hora)})</option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          // O FLUXO NORMAL (Culto de Hoje)
+          <>
+            {erroCulto ? (
+              <div className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-600 font-semibold border border-red-100 text-center">
+                {erroCulto}
+              </div>
+            ) : cultoHoje ? (
+              <div className="mb-5 rounded-lg bg-green-50 p-3 text-sm text-green-700 font-semibold border border-green-100 text-center">
+                ✅ Registrando para: {cultoHoje.nome}
+              </div>
+            ) : (
+              <div className="mb-5 text-center text-sm text-gray-500 font-medium">Buscando culto de hoje...</div>
+            )}
+          </>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4 flex flex-col border-t pt-4">
           
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Nome e Sobrenome *</label>
@@ -186,7 +252,7 @@ export default function Recepcao() {
             </div>
           </div>
 
-          <div className="my-2 flex items-center space-x-3 border-y border-gray-100 py-2">
+          <div className="my-2 flex items-center space-x-3 border-y border-gray-100 py-3">
             <input 
               type="checkbox" 
               id="primeira_vez"
@@ -212,7 +278,7 @@ export default function Recepcao() {
 
           <button 
             type="submit" 
-            disabled={isLoading || !cultoHoje} 
+            disabled={isLoading || (!modoRetroativo && !cultoHoje) || (modoRetroativo && !cultoRetroativoId)} 
             className="mt-4 w-full rounded-lg bg-blue-600 py-4 text-center font-bold text-white shadow-md transition hover:bg-blue-700 disabled:bg-gray-400"
           >
             {isLoading ? 'Salvando...' : 'Salvar Visitante'}
