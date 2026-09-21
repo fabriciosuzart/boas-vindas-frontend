@@ -225,7 +225,6 @@ export default function Dashboard() {
     const linhas = visitantesFiltrados.map(v => {
       const dataFormatada = new Date(v.criado_em).toLocaleDateString('pt-BR');
       
-      // Envolvendo todos os campos em aspas duplas de forma segura
       const obsSegura = v.observacoes ? `"${v.observacoes.replace(/"/g, '""').replace(/\n/g, ' ')}"` : '"Nenhuma"';
       const veioComSeguro = v.veio_com ? `"${v.veio_com}"` : '"Sozinho(a)"';
       const nomeSeguro = `"${v.visitante.nome}"`;
@@ -244,9 +243,12 @@ export default function Dashboard() {
       ];
     });
 
-    // O truque de ouro: "sep=;\n" na primeira linha força o Excel a separar as colunas
     const conteudoCSV = "sep=;\n" + [cabecalhos.join(';'), ...linhas.map(linha => linha.join(';'))].join('\n');
-    const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
+    
+    // SOLUÇÃO DOS ACENTOS: Passamos os bytes hexadecimais brutos do UTF-8 (BOM) primeiro
+    const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const blob = new Blob([BOM, conteudoCSV], { type: 'text/csv;charset=utf-8' });
+    
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     
