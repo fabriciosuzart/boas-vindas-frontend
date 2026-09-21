@@ -224,18 +224,28 @@ export default function Dashboard() {
     const cabecalhos = ['Nome', 'Telefone', 'Faixa Etaria', 'Status', 'Culto Visitado', 'Atendido Por', 'Primeira Vez', 'Veio Com', 'Observacoes', 'Data do Registro'];
     const linhas = visitantesFiltrados.map(v => {
       const dataFormatada = new Date(v.criado_em).toLocaleDateString('pt-BR');
-      const obsSegura = v.observacoes ? `"${v.observacoes.replace(/"/g, '""').replace(/\n/g, ' ')}"` : 'Nenhuma';
-      const veioComSeguro = v.veio_com ? `"${v.veio_com}"` : 'Sozinho(a)';
+      
+      // Envolvendo todos os campos em aspas duplas de forma segura
+      const obsSegura = v.observacoes ? `"${v.observacoes.replace(/"/g, '""').replace(/\n/g, ' ')}"` : '"Nenhuma"';
+      const veioComSeguro = v.veio_com ? `"${v.veio_com}"` : '"Sozinho(a)"';
       const nomeSeguro = `"${v.visitante.nome}"`;
+      const telSeguro = `"${v.visitante.telefone || 'Sem telefone'}"`;
+      const faixaSegura = `"${v.visitante.faixa_etaria || 'Nao informada'}"`;
+      const statusSeguro = `"${v.status}"`;
+      const cultoSeguro = `"${v.culto.nome}"`;
+      const respSeguro = `"${v.responsavel.nome}"`;
+      const primVezSegura = `"${v.primeira_vez ? 'Sim' : 'Nao'}"`;
+      const dataSegura = `"${dataFormatada}"`;
 
       return [
-        nomeSeguro, v.visitante.telefone || 'Sem telefone', v.visitante.faixa_etaria || 'Nao informada',
-        v.status, `"${v.culto.nome}"`, `"${v.responsavel.nome}"`,
-        v.primeira_vez ? 'Sim' : 'Nao', veioComSeguro, obsSegura, dataFormatada
+        nomeSeguro, telSeguro, faixaSegura,
+        statusSeguro, cultoSeguro, respSeguro,
+        primVezSegura, veioComSeguro, obsSegura, dataSegura
       ];
     });
 
-    const conteudoCSV = [cabecalhos.join(';'), ...linhas.map(linha => linha.join(';'))].join('\n');
+    // O truque de ouro: "sep=;\n" na primeira linha força o Excel a separar as colunas
+    const conteudoCSV = "sep=;\n" + [cabecalhos.join(';'), ...linhas.map(linha => linha.join(';'))].join('\n');
     const blob = new Blob(["\uFEFF" + conteudoCSV], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);

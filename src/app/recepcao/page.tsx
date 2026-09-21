@@ -48,17 +48,28 @@ export default function Recepcao() {
 
       // 2. Se for ADMIN, já carrega todos os cultos do banco em segundo plano para o modo retroativo
       if (usuario.perfil === 'ADMIN') {
-         fetch('https://boas-vindas-backend.onrender.com/cultos', {
-            headers: { 'Authorization': `Bearer ${token}` }
-         })
-         .then(res => res.json())
-         .then(data => {
-            // Organiza do culto mais recente para o mais antigo
-            const ordenados = data.sort((a: any, b: any) => new Date(b.data_hora).getTime() - new Date(a.data_hora).getTime());
-            setCultosAdmin(ordenados);
-         })
-         .catch(err => console.error("Erro ao buscar histórico de cultos", err));
-      }
+        fetch('https://boas-vindas-backend.onrender.com/cultos', {
+           headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(data => {
+           // Calcula a data limite de 30 dias atrás
+           const trintaDiasAtras = new Date();
+           trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
+           const agora = new Date();
+
+           // Filtra: apenas cultos dos últimos 30 dias e que já aconteceram
+           const filtrados = data.filter((c: any) => {
+             const dataCulto = new Date(c.data_hora);
+             return dataCulto >= trintaDiasAtras && dataCulto <= agora;
+           });
+
+           // Organiza do culto mais recente para o mais antigo
+           const ordenados = filtrados.sort((a: any, b: any) => new Date(b.data_hora).getTime() - new Date(a.data_hora).getTime());
+           setCultosAdmin(ordenados);
+        })
+        .catch(err => console.error("Erro ao buscar histórico de cultos", err));
+     }
     }
   }, [usuario, token, router, logout]);
 
