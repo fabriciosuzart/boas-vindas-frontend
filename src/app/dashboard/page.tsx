@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext'; 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import * as XLSX from 'xlsx';
 
 type Visitante = {
   id: string;
@@ -221,43 +222,29 @@ export default function Dashboard() {
   });
 
   const exportarParaExcel = () => {
-    const cabecalhos = ['Nome', 'Telefone', 'Faixa Etaria', 'Status', 'Culto Visitado', 'Atendido Por', 'Primeira Vez', 'Veio Com', 'Observacoes', 'Data do Registro'];
-    const linhas = visitantesFiltrados.map(v => {
-      const dataFormatada = new Date(v.criado_em).toLocaleDateString('pt-BR');
-      
-      const obsSegura = v.observacoes ? `"${v.observacoes.replace(/"/g, '""').replace(/\n/g, ' ')}"` : '"Nenhuma"';
-      const veioComSeguro = v.veio_com ? `"${v.veio_com}"` : '"Sozinho(a)"';
-      const nomeSeguro = `"${v.visitante.nome}"`;
-      const telSeguro = `"${v.visitante.telefone || 'Sem telefone'}"`;
-      const faixaSegura = `"${v.visitante.faixa_etaria || 'Nao informada'}"`;
-      const statusSeguro = `"${v.status}"`;
-      const cultoSeguro = `"${v.culto.nome}"`;
-      const respSeguro = `"${v.responsavel.nome}"`;
-      const primVezSegura = `"${v.primeira_vez ? 'Sim' : 'Nao'}"`;
-      const dataSegura = `"${dataFormatada}"`;
+    // 1. Prepara os dados de uma forma limpa e bonita
+    const dadosParaExportar = visitantesFiltrados.map(v => ({
+      'Nome': v.visitante.nome,
+      'Telefone': v.visitante.telefone || 'Sem telefone',
+      'Faixa Etária': v.visitante.faixa_etaria || 'Não informada',
+      'Status': v.status === 'EM_CONTATO' ? 'Em Contato' : v.status === 'CELULA' ? 'Célula' : v.status === 'FINALIZADO' ? 'Finalizado' : 'Novo',
+      'Culto Visitado': v.culto.nome,
+      'Atendido Por': v.responsavel.nome,
+      'Primeira Vez': v.primeira_vez ? 'Sim' : 'Não',
+      'Veio Com': v.veio_com || 'Sozinho(a)',
+      'Observações': v.observacoes || 'Nenhuma',
+      'Data do Registro': new Date(v.criado_em).toLocaleDateString('pt-BR')
+    }));
 
-      return [
-        nomeSeguro, telSeguro, faixaSegura,
-        statusSeguro, cultoSeguro, respSeguro,
-        primVezSegura, veioComSeguro, obsSegura, dataSegura
-      ];
-    });
+    // 2. Converte o JSON em uma aba do Excel
+    const worksheet = XLSX.utils.json_to_sheet(dadosParaExportar);
+    
+    // 3. Cria um arquivo Excel em branco e adiciona a aba nele
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Visitantes");
 
-    const conteudoCSV = "sep=;\n" + [cabecalhos.join(';'), ...linhas.map(linha => linha.join(';'))].join('\n');
-    
-    // SOLUÇÃO DOS ACENTOS: Passamos os bytes hexadecimais brutos do UTF-8 (BOM) primeiro
-    const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
-    const blob = new Blob([BOM, conteudoCSV], { type: 'text/csv;charset=utf-8' });
-    
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Relatorio_${textoDataFormatada.replace(/ /g, '_')}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // 4. Salva e faz o download nativo do arquivo .xlsx
+    XLSX.writeFile(workbook, `Relatorio_ICPV_${textoDataFormatada.replace(/ /g, '_')}.xlsx`);
   };
 
   const novosCount = visitantesFiltrados.filter(v => v.status === 'NOVO').length;
